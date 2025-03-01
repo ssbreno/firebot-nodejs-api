@@ -20,8 +20,8 @@ import { WinstonLogger } from './common/logging'
 const DEFAULT_API_PREFIX = '/api'
 const DEFAULT_API_VERSION = '1'
 const DEFAULT_SWAGGER_PREFIX = '/docs'
-const DEFAULT_BOOTSTRAP_LOG_LEVEL = 'debug'
-
+const DEFAULT_HOST = '0.0.0.0'
+const DEFAULT_LOG_LEVEL = 'debug'
 /**
  * Setup the Swagger (UI).
  * @param app
@@ -43,14 +43,18 @@ export const setupSwagger = (app: INestApplication) => {
  * Bootstrap the app.
  */
 async function bootstrap() {
+  const logLevel = (process.env.LOG_LEVEL || DEFAULT_LOG_LEVEL) as LogLevel
   const logger = new Logger('Bootstrap')
 
   const fastifyAdapter = new FastifyAdapter({
     ignoreTrailingSlash: true,
   })
 
+  const apiPrefix = process.env.API_PREFIX || DEFAULT_API_PREFIX
+  const apiVersion = process.env.API_VERSION || DEFAULT_API_VERSION
+
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, fastifyAdapter, {
-    logger: [(process.env.LOG_LEVEL || DEFAULT_BOOTSTRAP_LOG_LEVEL) as LogLevel],
+    logger: process.env.LOG_SILENT === 'true' ? false : [logLevel],
     abortOnError: false,
   })
 
@@ -58,10 +62,10 @@ async function bootstrap() {
   app.enableCors()
   app.enableVersioning({
     type: VersioningType.URI,
-    defaultVersion: process.env.API_VERSION || DEFAULT_API_VERSION,
+    defaultVersion: apiVersion,
   })
 
-  app.setGlobalPrefix(process.env.API_PREFIX || DEFAULT_API_PREFIX)
+  app.setGlobalPrefix(apiPrefix)
 
   setupSwagger(app)
 

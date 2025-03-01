@@ -9,9 +9,9 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { CustomThrottlerGuard } from './common/guards/throttler.guard'
 import { LoggingModule } from './common/logging'
 import { PrismaModule } from './infraestructure/prisma/prisma.module'
-import { AuthModule } from './modules/auth/auth.module'
-import { UsersModule } from './modules/users/users.module'
 import { QueueModule } from './modules/queue/queue.module'
+import { ToolsModule } from './modules/tools/tools.module'
+import { BlogModule } from './modules/blog/blog.module'
 import { redisConfig } from './config/redis.config'
 
 @Module({
@@ -37,10 +37,10 @@ import { redisConfig } from './config/redis.config'
       inject: [ConfigService],
     }),
     LoggingModule,
-    PrismaModule,
-    AuthModule,
-    UsersModule,
+    ...(process.env.USE_DB === 'true' ? [PrismaModule] : []),
     QueueModule,
+    ToolsModule,
+    BlogModule,
   ],
   providers: [
     {
