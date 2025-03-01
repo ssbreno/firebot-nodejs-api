@@ -3,28 +3,62 @@ import { join } from 'path'
 import * as Sharp from 'sharp'
 import { ApiService } from '../../infrastructure/services/api.service'
 import { translations } from '../../config/constants'
-import { BannerAssets, BannerData, Translations } from '../interfaces/banner.interface'
+import {
+  BannerAssets,
+  BannerData,
+  BannerOptions,
+  Translations,
+} from '../interfaces/banner.interface'
 
 @Injectable()
 export class BannerService {
   constructor(private readonly apiService: ApiService) {}
 
-  async generateBanner(world: string, guildName: string, lang = 'pt'): Promise<Buffer> {
+  /**
+   * Generate a dynamic banner for a guild with advanced styling
+   */
+  async generateBanner(
+    world: string,
+    guildName: string,
+    options: BannerOptions = {},
+  ): Promise<Buffer> {
     try {
-      const t = translations[lang] || translations.pt
-      const assets = await this.loadAssets()
-      const data = await this.fetchData(world, guildName)
-      const bossImage = await this.getBossImage(data.boosted)
+      const {
+        lang = 'pt',
+        theme = 'firebot',
+        showBoss = true,
+        showLogo = true,
+        width = 1200,
+        height = 300,
+      } = options
 
-      const svg = this.generateSVG(assets, data, t)
-      return await this.createFinalImage(svg, bossImage)
+      const t = translations[lang] || translations.pt
+      const assets = await this.loadAssets(theme)
+      const data = await this.fetchData(world, guildName)
+
+      // Only fetch boss image if enabled in options
+      const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
+
+      // Generate SVG with dynamic sizing and theme
+      const svg = this.generateSVG(assets, data, t, {
+        width,
+        height,
+        theme,
+        showLogo,
+        showBoss,
+      })
+
+      return await this.createFinalImage(svg, bossImage, { width, height })
     } catch (error) {
       console.error('Banner generation error:', error)
       throw new Error(`Banner generation failed: ${error.message}`)
     }
   }
 
-  private async loadAssets(): Promise<BannerAssets> {
+  /**
+   * Load assets based on the selected theme
+   */
+  private async loadAssets(theme: string = 'firebot'): Promise<BannerAssets> {
     try {
       const possiblePaths = [
         join(process.cwd(), 'src/assets/images'),
@@ -36,12 +70,22 @@ export class BannerService {
       let fbotImageBase64: string | null = null
       let backgroundImageBase64: string | null = null
 
+      // Try to load theme-specific assets
+      const logoFile = `logo-${theme}.png`
+      const backgroundFile = `background-${theme}.png`
+
       for (const basePath of possiblePaths) {
         try {
+          // Try theme-specific assets first, fall back to defaults
           ;[fbotImageBase64, backgroundImageBase64] = await Promise.all([
-            this.apiService.readImageAsBase64(join(basePath, 'logo.png')),
-            this.apiService.readImageAsBase64(join(basePath, 'image.png')),
+            this.apiService
+              .readImageAsBase64(join(basePath, logoFile))
+              .catch(() => this.apiService.readImageAsBase64(join(basePath, 'logo.png'))),
+            this.apiService
+              .readImageAsBase64(join(basePath, backgroundFile))
+              .catch(() => this.apiService.readImageAsBase64(join(basePath, 'image.png'))),
           ])
+
           if (fbotImageBase64 && backgroundImageBase64) break
         } catch (e) {
           console.log(`Failed to load assets from ${basePath}:`, e.message)
@@ -59,6 +103,9 @@ export class BannerService {
     }
   }
 
+  /**
+   * Fetch all necessary data for the banner
+   */
   private async fetchData(world: string, guildName: string): Promise<BannerData> {
     try {
       if (!world) throw new Error('World parameter is required')
@@ -79,6 +126,9 @@ export class BannerService {
     }
   }
 
+  /**
+   * Get the boss image for overlay
+   */
   private async getBossImage(boosted: any): Promise<Buffer | null> {
     try {
       if (!boosted?.boostable_bosses?.boosted?.image_url) {
@@ -88,69 +138,202 @@ export class BannerService {
       const imageBuffer = await this.apiService.fetchImage(
         boosted.boostable_bosses.boosted.image_url,
       )
+
+      // Validate and process image
       await Sharp(imageBuffer).metadata()
 
-      return await Sharp(imageBuffer).png().toBuffer()
+      // Process with transparent background
+      return await Sharp(imageBuffer)
+        .removeAlpha()
+        .ensureAlpha(0.9) // Add semi-transparency
+        .png()
+        .toBuffer()
     } catch (error) {
       console.warn('Boss image processing failed:', error)
       return null
     }
   }
 
-  private generateSVG(assets: BannerAssets, data: BannerData, t: Translations[string]): string {
+  /**
+   * Generate the SVG with advanced styling
+   */
+  private generateSVG(
+    assets: BannerAssets,
+    data: BannerData,
+    t: Translations[string],
+    options: {
+      width: number
+      height: number
+      theme: string
+      showLogo: boolean
+      showBoss: boolean
+    },
+  ): string {
     try {
-      const { fbotImageBase64, backgroundImageBase64 } = assets
+      const { fbotImageBase64 } = assets
       const { worldInfo, guildInfo, boosted } = data
+      const { width, height, showLogo } = options
 
       if (!worldInfo || !guildInfo) {
         throw new Error('Missing required data for SVG generation')
       }
 
+      // Firebot theme-specific colors - black and red
+      const colors = {
+        gradientStart: '#3c0000',
+        gradientEnd: '#000000',
+        headerBg: '#1a0000',
+        mainBg: 'rgba(0, 0, 0, 0.9)',
+        contentBg: 'rgba(10, 10, 10, 0.9)',
+        primaryText: '#ffffff',
+        secondaryText: '#bbbbbb',
+        accentText: '#ff3333',
+        successText: '#00cc44',
+        warningText: '#ffaa00',
+        dangerText: '#ff3333',
+        progressBarBg: '#222222',
+        progressBarFill: '#750000',
+      }
+
+      // Calculate online percentage
+      const onlinePercentage = Math.round(
+        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+      )
+
+      // Build the SVG with black and red theme
       return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="200">
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
         <defs>
           <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#a37718;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#54080e;stop-opacity:1" />
+            <stop offset="0%" style="stop-color:${colors.gradientStart};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${colors.gradientEnd};stop-opacity:1" />
           </linearGradient>
+
+          <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#240000;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+          </linearGradient>
+
+          <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+            <feOffset dx="1" dy="1" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.5" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <clipPath id="roundedCorners">
+            <rect width="${width}" height="${height}" rx="5" ry="5" />
+          </clipPath>
         </defs>
 
-        <image href="data:image/png;base64,${backgroundImageBase64}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"/>
-        <rect width="100%" height="100%" fill="#000000" opacity="0.7"/>
-        <rect width="100%" height="40" fill="url(#headerGradient)"/>
-        <text x="10" y="25" font-family="Comic, sans-serif" font-size="14" fill="#ffffff">
-          ${t.membersOnline}: (${guildInfo.guild.players_online}/${guildInfo.guild.members_total})
+        <!-- Background with black and red gradient -->
+        <g clip-path="url(#roundedCorners)">
+          <rect width="100%" height="100%" fill="url(#bgGradient)"/>
+
+          <!-- Header bar -->
+          <rect width="100%" height="${height * 0.12}" fill="url(#headerGradient)"/>
+
+          <!-- Main content area - now just using colors instead of image -->
+          <rect x="10" y="${height * 0.14}" width="${width * 0.62}" height="${height * 0.82}"
+                rx="4" ry="4" fill="${colors.contentBg}" filter="url(#dropShadow)"/>
+
+          <!-- Stats panel area -->
+          <rect x="${width * 0.64 + 10}" y="${height * 0.14}" width="${width * 0.35 - 20}" height="${height * 0.82}"
+                rx="4" ry="4" fill="${colors.contentBg}" filter="url(#dropShadow)"/>
+        </g>
+
+        <!-- Header content -->
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${worldInfo.world.name} (${worldInfo.world.pvp_type})
         </text>
-        <text x="500" y="25" font-family="Comic, sans-serif" font-size="14" fill="#ffffff" text-anchor="middle">
-          https://firebot.run
-        </text>
-        <text x="700" y="25" font-family="Comic, sans-serif" font-size="14" fill="#ffffff">
-          ${t.boostedBoss}: ${boosted?.boostable_bosses?.boosted?.name || 'N/A'}
-        </text>
-        <text x="20" y="80" font-family="Comic, sans-serif" font-size="36" font-weight="bold" fill="#ffffff">
+
+        <!-- Guild Name in stat panel -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
           ${guildInfo.guild.name}
         </text>
-        <text x="20" y="120" font-family="Comic, sans-serif" font-size="24" fill="#b0bec5">
-          ${worldInfo.world.name}
+
+        <!-- Main guild info -->
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${t.membersOnline}:
         </text>
-        <text x="20" y="150" font-family="Comic, sans-serif" font-size="18" fill="#64b5f6">
-          ${worldInfo.world.pvp_type}
+
+        <!-- Progress bar for online members with firebot colors -->
+        <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
+        <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+          ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
         </text>
-        <text x="20" y="180" font-family="Comic, sans-serif" font-size="16" fill="#4caf50">
+
+        <!-- Guild foundation date if available -->
+        ${
+          guildInfo.guild.founded
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+          ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
+        </text>
+        `
+            : ''
+        }
+
+        <!-- Guild description if available -->
+        ${
+          guildInfo.guild.description
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+          "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
+        </text>
+        `
+            : ''
+        }
+
+        <!-- World stats section -->
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
           ${t.playersOnline}: ${worldInfo.world.players_online}
         </text>
-        <text x="250" y="180" font-family="Comic, sans-serif" font-size="16" fill="#ff9800">
+
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
           ${t.record}: ${worldInfo.world.record_players}
         </text>
-        <text x="450" y="180" font-family="Comic, sans-serif" font-size="16" fill="#e91e63">
+
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
           ${worldInfo.world.location}
         </text>
+
+        <!-- Footer with firebot branding -->
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+          https://firebot.run
+        </text>
+
+        <!-- Boosted boss info -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+          ${t.boostedBoss}:
+        </text>
+
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+          ${boosted?.boostable_bosses?.boosted?.name || 'N/A'}
+        </text>
+
+        <!-- Image placeholder for boss - real image added via Sharp composite -->
         ${
-          fbotImageBase64
+          options.showBoss
             ? `
-          <a href="https://firebot.run" target="_blank">
-            <image href="data:image/png;base64,${fbotImageBase64}" x="800" y="50" width="180" height="140"/>
-          </a>
+        <rect x="${width * 0.65 + 20}" y="${height * 0.6}" width="80" height="80" fill="transparent" id="bossImagePlaceholder" />
+        `
+            : ''
+        }
+
+        <!-- Logo image - smaller size for better proportion -->
+        ${
+          showLogo
+            ? `
+        <a href="https://firebot.run" target="_blank">
+          <image href="data:image/png;base64,${fbotImageBase64}" x="${width * 0.78}" y="${height * 0.25}" width="100" height="80"/>
+        </a>
         `
             : ''
         }
@@ -160,21 +343,32 @@ export class BannerService {
     }
   }
 
-  private async createFinalImage(svg: string, bossImage: Buffer | null): Promise<Buffer> {
+  /**
+   * Create the final image with boss overlay if available
+   */
+  private async createFinalImage(
+    svg: string,
+    bossImage: Buffer | null,
+    options: { width: number; height: number },
+  ): Promise<Buffer> {
     try {
       const svgBuffer = Buffer.from(svg)
       let image = Sharp(svgBuffer)
 
+      // If there's a boss image, composite it
       if (bossImage) {
+        // Position boss image near bottom right
         image = image.composite([
           {
             input: bossImage,
-            top: 55,
-            left: 730,
+            top: Math.floor(options.height * 0.6), // Match the placeholder in SVG
+            left: Math.floor(options.width * 0.65 + 20), // Match the placeholder in SVG
+            gravity: 'southeast',
           },
         ])
       }
 
+      // Add rounded corners and slight border
       return await image.png().toBuffer()
     } catch (error) {
       throw new Error(`Final image creation failed: ${error.message}`)

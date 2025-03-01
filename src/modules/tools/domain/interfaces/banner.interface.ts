@@ -13,6 +13,8 @@ export interface GuildInfo {
     name: string
     players_online: number
     members_total: number
+    founded: string
+    description: string
   }
 }
 
@@ -36,11 +38,24 @@ export interface BannerData {
   boosted: BoostedBoss
 }
 
+export interface BannerOptions {
+  lang?: string
+  theme?: 'dark' | 'light' | 'firebot'
+  showBoss?: boolean
+  showLogo?: boolean
+  width?: number
+  height?: number
+}
+
 export interface Translations {
-  [key: string]: {
+  [language: string]: {
     membersOnline: string
     boostedBoss: string
     playersOnline: string
     record: string
+    founded: string
+    avgLevel: string
+    topVocation: string
+    guildStats: string
   }
 }
