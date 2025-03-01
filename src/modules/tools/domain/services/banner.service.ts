@@ -53,6 +53,7 @@ export class BannerService {
         theme,
         showLogo,
         showBoss,
+        lang: options.lang,
       })
 
       return await this.createFinalImage(rawSvg, bossImage, { width, height })
@@ -174,6 +175,7 @@ export class BannerService {
       theme: string
       showLogo: boolean
       showBoss: boolean
+      lang?: string
     },
   ): string {
     try {
@@ -208,8 +210,9 @@ export class BannerService {
       )
 
       // Build the SVG with black and red theme
-      return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+      <svg xmlns="http://www.w3.org/2000/svg" xml:lang="${options.lang || 'pt'}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
         <defs>
           <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" style="stop-color:${colors.gradientStart};stop-opacity:1" />
@@ -255,24 +258,24 @@ export class BannerService {
         </g>
 
         <!-- Header content -->
-        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
         </text>
 
         <!-- Guild Name in stat panel -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
           ${this.escapeXml(guildInfo.guild.name)}
         </text>
 
         <!-- Main guild info -->
-        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.membersOnline)}:
         </text>
 
         <!-- Progress bar for online members with firebot colors -->
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
-        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
           ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
         </text>
 
@@ -280,7 +283,7 @@ export class BannerService {
         ${
           guildInfo.guild.founded
             ? `
-        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
           ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
         </text>
         `
@@ -291,7 +294,7 @@ export class BannerService {
         ${
           guildInfo.guild.description
             ? `
-        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
           "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
         </text>
         `
@@ -299,29 +302,29 @@ export class BannerService {
         }
 
         <!-- World stats section -->
-        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
           ${t.playersOnline}: ${worldInfo.world.players_online}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
           ${t.record}: ${worldInfo.world.record_players}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
           ${worldInfo.world.location}
         </text>
 
         <!-- Footer with firebot branding -->
-        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
           https://firebot.run
         </text>
 
         <!-- Boosted boss info -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.boostedBoss)}:
         </text>
 
-        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
           ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
         </text>
 

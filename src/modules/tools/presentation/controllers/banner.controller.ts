@@ -38,11 +38,14 @@ export class BannerController {
 
       const banner = await this.bannerService.generateBanner(world, guild, options)
 
-      res.headers({
-        'Content-Type': 'image/png; charset=utf-8',
-        'Content-Disposition': `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"`,
-        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
-      })
+      res.raw.setHeader('Content-Type', 'image/png')
+      res.raw.setHeader(
+        'Content-Disposition',
+        `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"; charset=utf-8`,
+      )
+      res.raw.setHeader('Content-Language', options.lang || 'pt')
+      res.raw.setHeader('Content-Transfer-Encoding', 'binary')
+      res.raw.setHeader('Cache-Control', 'public, max-age=300')
 
       return res.send(banner)
     } catch (error) {
