@@ -39,7 +39,6 @@ export class BannerService {
       // Only fetch boss image if enabled in options
       const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
 
-      // Generate SVG with dynamic sizing and theme
       // Decode any base64 encoded text in translations
       const decodedTranslations = {
         ...t,
@@ -56,8 +55,7 @@ export class BannerService {
         showBoss,
       })
 
-      const encodedSvg = this.encodeSvg(rawSvg)
-      return await this.createFinalImage(encodedSvg, bossImage, { width, height })
+      return await this.createFinalImage(rawSvg, bossImage, { width, height })
     } catch (error) {
       console.error('Banner generation error:', error)
       throw new Error(`Banner generation failed: ${error.message}`)
@@ -353,32 +351,6 @@ export class BannerService {
   }
 
   /**
-   * Create the final image with boss overlay if available
-   */
-  /**
-   * Escape XML special characters to prevent SVG rendering issues
-   */
-  private escapeXml(unsafe: string): string {
-    if (!unsafe) return ''
-    return unsafe.replace(/[<>&'"]/g, c => {
-      switch (c) {
-        case '<':
-          return '&lt;'
-        case '>':
-          return '&gt;'
-        case '&':
-          return '&amp;'
-        case "'":
-          return '&apos;'
-        case '"':
-          return '&quot;'
-        default:
-          return c
-      }
-    })
-  }
-
-  /**
    * Convert text to base64 to handle encoding issues
    */
   private encodeText(text: string): string {
@@ -390,7 +362,37 @@ export class BannerService {
    * Decode base64 text
    */
   private decodeText(base64: string): string {
-    return Buffer.from(base64, 'base64').toString('utf8')
+    if (!base64) return ''
+    try {
+      return Buffer.from(base64, 'base64').toString('utf8')
+    } catch (e) {
+      throw e
+    }
+  }
+
+  /**
+   * Escape XML special characters and ensure UTF-8 encoding
+   */
+  private escapeXml(unsafe: string): string {
+    if (!unsafe) return ''
+    return Buffer.from(unsafe, 'utf8')
+      .toString('utf8')
+      .replace(/[<>&'"]/g, c => {
+        switch (c) {
+          case '<':
+            return '&lt;'
+          case '>':
+            return '&gt;'
+          case '&':
+            return '&amp;'
+          case "'":
+            return '&apos;'
+          case '"':
+            return '&quot;'
+          default:
+            return c
+        }
+      })
   }
 
   private async createFinalImage(
