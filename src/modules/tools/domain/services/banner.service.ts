@@ -249,17 +249,17 @@ export class BannerService {
 
         <!-- Header content -->
         <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
-          ${worldInfo.world.name} (${worldInfo.world.pvp_type})
+          ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
         </text>
 
         <!-- Guild Name in stat panel -->
         <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
-          ${guildInfo.guild.name}
+          ${this.escapeXml(guildInfo.guild.name)}
         </text>
 
         <!-- Main guild info -->
         <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
-          ${t.membersOnline}:
+          ${this.escapeXml(t.membersOnline)}:
         </text>
 
         <!-- Progress bar for online members with firebot colors -->
@@ -311,11 +311,11 @@ export class BannerService {
 
         <!-- Boosted boss info -->
         <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
-          ${t.boostedBoss}:
+          ${this.escapeXml(t.boostedBoss)}:
         </text>
 
         <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
-          ${boosted?.boostable_bosses?.boosted?.name || 'N/A'}
+          ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
         </text>
 
         <!-- Image placeholder for boss - real image added via Sharp composite -->
@@ -346,6 +346,29 @@ export class BannerService {
   /**
    * Create the final image with boss overlay if available
    */
+  /**
+   * Escape XML special characters to prevent SVG rendering issues
+   */
+  private escapeXml(unsafe: string): string {
+    if (!unsafe) return ''
+    return unsafe.replace(/[<>&'"]/g, c => {
+      switch (c) {
+        case '<':
+          return '&lt;'
+        case '>':
+          return '&gt;'
+        case '&':
+          return '&amp;'
+        case "'":
+          return '&apos;'
+        case '"':
+          return '&quot;'
+        default:
+          return c
+      }
+    })
+  }
+
   private async createFinalImage(
     svg: string,
     bossImage: Buffer | null,
