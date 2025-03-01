@@ -40,7 +40,15 @@ export class BannerService {
       const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
 
       // Generate SVG with dynamic sizing and theme
-      const rawSvg = this.generateSVG(assets, data, t, {
+      // Decode any base64 encoded text in translations
+      const decodedTranslations = {
+        ...t,
+        avgLevel: this.decodeText(t.avgLevel),
+        topVocation: this.decodeText(t.topVocation),
+        guildStats: this.decodeText(t.guildStats),
+      }
+
+      const rawSvg = this.generateSVG(assets, data, decodedTranslations, {
         width,
         height,
         theme,
@@ -249,24 +257,24 @@ export class BannerService {
         </g>
 
         <!-- Header content -->
-        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
         </text>
 
         <!-- Guild Name in stat panel -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
           ${this.escapeXml(guildInfo.guild.name)}
         </text>
 
         <!-- Main guild info -->
-        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.membersOnline)}:
         </text>
 
         <!-- Progress bar for online members with firebot colors -->
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
-        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
           ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
         </text>
 
@@ -274,7 +282,7 @@ export class BannerService {
         ${
           guildInfo.guild.founded
             ? `
-        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
           ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
         </text>
         `
@@ -285,7 +293,7 @@ export class BannerService {
         ${
           guildInfo.guild.description
             ? `
-        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
           "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
         </text>
         `
@@ -293,29 +301,29 @@ export class BannerService {
         }
 
         <!-- World stats section -->
-        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
           ${t.playersOnline}: ${worldInfo.world.players_online}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
           ${t.record}: ${worldInfo.world.record_players}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
           ${worldInfo.world.location}
         </text>
 
         <!-- Footer with firebot branding -->
-        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
           https://firebot.run
         </text>
 
         <!-- Boosted boss info -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.boostedBoss)}:
         </text>
 
-        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
           ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
         </text>
 
@@ -371,20 +379,18 @@ export class BannerService {
   }
 
   /**
-   * Encode text for SVG to handle special characters
+   * Convert text to base64 to handle encoding issues
    */
-  private encodeSvgText(text: string): string {
+  private encodeText(text: string): string {
     if (!text) return ''
-    const buffer = Buffer.from(text, 'utf8')
-    return buffer.toString('utf8')
+    return Buffer.from(text).toString('base64')
   }
 
   /**
-   * Ensure SVG is properly encoded in UTF-8
+   * Decode base64 text
    */
-  private encodeSvg(svg: string): string {
-    const buffer = Buffer.from(svg, 'utf8')
-    return buffer.toString('utf8')
+  private decodeText(base64: string): string {
+    return Buffer.from(base64, 'base64').toString('utf8')
   }
 
   private async createFinalImage(

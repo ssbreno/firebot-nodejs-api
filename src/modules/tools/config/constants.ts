@@ -7,9 +7,9 @@ export const translations: Translations = {
     playersOnline: 'Jogadores Online',
     record: 'Recorde',
     founded: 'Fundado em',
-    avgLevel: 'N&#237;vel M&#233;dio',
-    topVocation: 'Voca&#231;&#227;o Principal',
-    guildStats: 'Estat&#237;sticas da Guild',
+    avgLevel: Buffer.from('Nível Médio').toString('base64'),
+    topVocation: Buffer.from('Vocação Principal').toString('base64'),
+    guildStats: Buffer.from('Estatísticas da Guild').toString('base64'),
   },
   en: {
     membersOnline: 'Members Online',
