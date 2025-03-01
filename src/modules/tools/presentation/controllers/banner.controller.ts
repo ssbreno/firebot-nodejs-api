@@ -39,7 +39,7 @@ export class BannerController {
       const banner = await this.bannerService.generateBanner(world, guild, options)
 
       res.headers({
-        'Content-Type': 'image/png',
+        'Content-Type': 'image/png; charset=utf-8',
         'Content-Disposition': `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"`,
         'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
       })

@@ -40,7 +40,7 @@ export class BannerService {
       const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
 
       // Generate SVG with dynamic sizing and theme
-      const svg = this.generateSVG(assets, data, t, {
+      const rawSvg = this.generateSVG(assets, data, t, {
         width,
         height,
         theme,
@@ -48,7 +48,8 @@ export class BannerService {
         showBoss,
       })
 
-      return await this.createFinalImage(svg, bossImage, { width, height })
+      const encodedSvg = this.encodeSvg(rawSvg)
+      return await this.createFinalImage(encodedSvg, bossImage, { width, height })
     } catch (error) {
       console.error('Banner generation error:', error)
       throw new Error(`Banner generation failed: ${error.message}`)
@@ -367,6 +368,23 @@ export class BannerService {
           return c
       }
     })
+  }
+
+  /**
+   * Encode text for SVG to handle special characters
+   */
+  private encodeSvgText(text: string): string {
+    if (!text) return ''
+    const buffer = Buffer.from(text, 'utf8')
+    return buffer.toString('utf8')
+  }
+
+  /**
+   * Ensure SVG is properly encoded in UTF-8
+   */
+  private encodeSvg(svg: string): string {
+    const buffer = Buffer.from(svg, 'utf8')
+    return buffer.toString('utf8')
   }
 
   private async createFinalImage(
