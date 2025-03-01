@@ -162,9 +162,6 @@ export class BannerService {
     }
   }
 
-  /**
-   * Generate the SVG with advanced styling
-   */
   private generateSVG(
     assets: BannerAssets,
     data: BannerData,
@@ -209,7 +206,10 @@ export class BannerService {
         (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
       )
 
-      // Build the SVG with black and red theme
+      // Simplified font family that works more reliably across environments
+      const fontFamily = "'Arial', sans-serif"
+
+      // Build the SVG with black and red theme, using system fonts
       return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
       <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
       <svg xmlns="http://www.w3.org/2000/svg" xml:lang="${options.lang || 'pt'}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -258,24 +258,24 @@ export class BannerService {
         </g>
 
         <!-- Header content -->
-        <text x="${width * 0.01}" y="${height * 0.08}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="${fontFamily}" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
         </text>
 
         <!-- Guild Name in stat panel -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="${fontFamily}" font-size="${height * 0.04}" text-anchor="start" fill="${colors.primaryText}">
           ${this.escapeXml(guildInfo.guild.name)}
         </text>
 
         <!-- Main guild info -->
-        <text x="${width * 0.02}" y="${height * 0.23}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="${fontFamily}" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.membersOnline)}:
         </text>
 
         <!-- Progress bar for online members with firebot colors -->
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
-        <text x="${width * 0.31}" y="${height * 0.3}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="${fontFamily}" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
           ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
         </text>
 
@@ -283,7 +283,7 @@ export class BannerService {
         ${
           guildInfo.guild.founded
             ? `
-        <text x="${width * 0.02}" y="${height * 0.38}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="${fontFamily}" font-size="${height * 0.035}" fill="${colors.secondaryText}">
           ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
         </text>
         `
@@ -294,7 +294,7 @@ export class BannerService {
         ${
           guildInfo.guild.description
             ? `
-        <text x="${width * 0.02}" y="${height * 0.46}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="${fontFamily}" font-size="${height * 0.03}" fill="${colors.accentText}">
           "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
         </text>
         `
@@ -302,29 +302,29 @@ export class BannerService {
         }
 
         <!-- World stats section -->
-        <text x="${width * 0.02}" y="${height * 0.56}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="${fontFamily}" font-size="${height * 0.035}" fill="${colors.successText}">
           ${t.playersOnline}: ${worldInfo.world.players_online}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.64}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="${fontFamily}" font-size="${height * 0.035}" fill="${colors.warningText}">
           ${t.record}: ${worldInfo.world.record_players}
         </text>
 
-        <text x="${width * 0.02}" y="${height * 0.72}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="${fontFamily}" font-size="${height * 0.035}" fill="${colors.dangerText}">
           ${worldInfo.world.location}
         </text>
 
         <!-- Footer with firebot branding -->
-        <text x="${width * 0.31}" y="${height * 0.9}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="${fontFamily}" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
           https://firebot.run
         </text>
 
         <!-- Boosted boss info -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="${fontFamily}" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
           ${this.escapeXml(t.boostedBoss)}:
         </text>
 
-        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="${fontFamily}" font-size="${height * 0.035}" fill="${colors.accentText}">
           ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
         </text>
 
@@ -352,7 +352,6 @@ export class BannerService {
       throw new Error(`SVG generation failed: ${error.message}`)
     }
   }
-
   /**
    * Convert text to base64 to handle encoding issues
    */
@@ -375,27 +374,31 @@ export class BannerService {
 
   /**
    * Escape XML special characters and ensure UTF-8 encoding
+   * More robust implementation that handles various edge cases
    */
   private escapeXml(unsafe: string): string {
     if (!unsafe) return ''
-    return Buffer.from(unsafe, 'utf8')
-      .toString('utf8')
-      .replace(/[<>&'"]/g, c => {
-        switch (c) {
-          case '<':
-            return '&lt;'
-          case '>':
-            return '&gt;'
-          case '&':
-            return '&amp;'
-          case "'":
-            return '&apos;'
-          case '"':
-            return '&quot;'
-          default:
-            return c
-        }
-      })
+
+    // First ensure we're dealing with a string
+    const text = String(unsafe)
+
+    // Replace XML special characters
+    return text.replace(/[<>&'"]/g, c => {
+      switch (c) {
+        case '<':
+          return '&lt;'
+        case '>':
+          return '&gt;'
+        case '&':
+          return '&amp;'
+        case "'":
+          return '&apos;'
+        case '"':
+          return '&quot;'
+        default:
+          return c
+      }
+    })
   }
 
   private async createFinalImage(
