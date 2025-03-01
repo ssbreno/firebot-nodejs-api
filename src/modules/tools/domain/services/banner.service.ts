@@ -26,10 +26,28 @@ export class BannerService {
 
   private async loadAssets(): Promise<BannerAssets> {
     try {
-      const [fbotImageBase64, backgroundImageBase64] = await Promise.all([
-        this.apiService.readImageAsBase64(join(process.cwd(), 'src/assets/images/logo.png')),
-        this.apiService.readImageAsBase64(join(process.cwd(), 'src/assets/images/image.png')),
-      ])
+      const possiblePaths = [
+        join(process.cwd(), 'src/assets/images'),
+        join(process.cwd(), 'dist/src/assets/images'),
+        '/app/src/assets/images',
+        '/app/dist/src/assets/images',
+      ]
+
+      let fbotImageBase64: string | null = null
+      let backgroundImageBase64: string | null = null
+
+      for (const basePath of possiblePaths) {
+        try {
+          ;[fbotImageBase64, backgroundImageBase64] = await Promise.all([
+            this.apiService.readImageAsBase64(join(basePath, 'logo.png')),
+            this.apiService.readImageAsBase64(join(basePath, 'image.png')),
+          ])
+          if (fbotImageBase64 && backgroundImageBase64) break
+        } catch (e) {
+          console.log(`Failed to load assets from ${basePath}:`, e.message)
+          continue
+        }
+      }
 
       if (!fbotImageBase64 || !backgroundImageBase64) {
         throw new Error('Failed to load required assets')

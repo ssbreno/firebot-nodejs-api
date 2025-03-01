@@ -23,6 +23,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 
-EXPOSE 3000
+# Copy assets directory to both locations (for compatibility)
+COPY --from=builder /app/src/assets ./src/assets
+COPY --from=builder /app/src/assets ./dist/src/assets
 
-CMD ["npm", "run", "start:prod"]
+EXPOSE 3001
+
+CMD ["node", "dist/src/main.js"]
