@@ -1,0 +1,11 @@
+# .dockerignore
+node_modules
+npm-debug.log
+dist
+.git
+.env
+.env.*
+*.md
+.gitignore
+.dockerignore
+docker-compose*
