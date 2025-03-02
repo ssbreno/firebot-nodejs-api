@@ -47,20 +47,30 @@ export class BannerService {
         guildStats: this.decodeText(t.guildStats),
       }
 
-      // Create image directly instead of using SVG
-      return await this.createDirectImage(
+      // Use the traditional SVG approach but without text elements
+      const rawSvg = this.generateBaseStructureSVG(data, {
+        width,
+        height,
+        theme,
+        showBoss,
+        lang: options.lang,
+      })
+
+      // Create the final image with text overlays
+      return await this.createFinalImageWithText(
+        rawSvg,
         assets,
         data,
         decodedTranslations,
+        bossImage,
         {
           width,
           height,
           theme,
-          showLogo,
           showBoss,
+          showLogo,
           lang: options.lang,
         },
-        bossImage,
       )
     } catch (error) {
       console.error('Banner generation error:', error)
@@ -168,54 +178,27 @@ export class BannerService {
   }
 
   /**
-   * Convert text to base64 to handle encoding issues
+   * Generate the base SVG structure WITHOUT any text elements
    */
-  private encodeText(text: string): string {
-    if (!text) return ''
-    return Buffer.from(text).toString('base64')
-  }
-
-  /**
-   * Decode base64 text
-   */
-  private decodeText(base64: string): string {
-    if (!base64) return ''
-    try {
-      return Buffer.from(base64, 'base64').toString('utf8')
-    } catch (e) {
-      throw e
-    }
-  }
-
-  /**
-   * Create image directly using Sharp composite operations
-   * This avoids SVG text rendering issues completely
-   */
-  private async createDirectImage(
-    assets: BannerAssets,
+  private generateBaseStructureSVG(
     data: BannerData,
-    t: Translations[string],
     options: {
       width: number
       height: number
       theme: string
-      showLogo: boolean
       showBoss: boolean
       lang?: string
     },
-    bossImage: Buffer | null,
-  ): Promise<Buffer> {
+  ): string {
     try {
-      const { width, height, showLogo } = options
-      const { worldInfo, guildInfo, boosted } = data
-      const { fbotImageBase64 } = assets
+      const { worldInfo, guildInfo } = data
+      const { width, height } = options
 
-      // Calculate online percentage
-      const onlinePercentage = Math.round(
-        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
-      )
+      if (!worldInfo || !guildInfo) {
+        throw new Error('Missing required data for SVG generation')
+      }
 
-      // Define colors to use in the image
+      // Firebot theme-specific colors
       const colors = {
         gradientStart: '#3c0000',
         gradientEnd: '#000000',
@@ -232,10 +215,13 @@ export class BannerService {
         progressBarFill: '#750000',
       }
 
-      // Create base SVG structure WITHOUT any text elements
-      // We'll use overlay images for text instead
-      const baseSvg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-      <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+      // Calculate online percentage
+      const onlinePercentage = Math.round(
+        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+      )
+
+      // Build the SVG with black and red theme, WITHOUT ANY TEXT
+      return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
         <defs>
           <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -285,18 +271,67 @@ export class BannerService {
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
         <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
       </svg>`
+    } catch (error) {
+      throw new Error(`SVG generation failed: ${error.message}`)
+    }
+  }
 
-      // Create base image from SVG structure
-      let baseImage = Sharp(Buffer.from(baseSvg))
+  /**
+   * Create final image with text overlays
+   */
+  private async createFinalImageWithText(
+    svg: string,
+    assets: BannerAssets,
+    data: BannerData,
+    t: Translations[string],
+    bossImage: Buffer | null,
+    options: {
+      width: number
+      height: number
+      theme: string
+      showBoss: boolean
+      showLogo: boolean
+      lang?: string
+    },
+  ): Promise<Buffer> {
+    try {
+      const { width, height, showLogo } = options
+      const { fbotImageBase64 } = assets
+      const { worldInfo, guildInfo, boosted } = data
 
-      // Array to store all composite operations
+      // Calculate online percentage
+      const onlinePercentage = Math.round(
+        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+      )
+
+      // Convert base SVG to image
+      const svgBuffer = Buffer.from(svg)
+      const image = Sharp(svgBuffer)
+
+      // Firebot theme-specific colors
+      const colors = {
+        primaryText: '#ffffff',
+        secondaryText: '#bbbbbb',
+        accentText: '#ff3333',
+        successText: '#00cc44',
+        warningText: '#ffaa00',
+        dangerText: '#ff3333',
+      }
+
+      // Create all the text images
       const composites = []
 
-      // Add the logo if enabled
+      // Add logo if needed
       if (showLogo && fbotImageBase64) {
         const logoBuffer = Buffer.from(fbotImageBase64, 'base64')
+
+        // Resize the logo to appropriate dimensions
+        const resizedLogo = await Sharp(logoBuffer)
+          .resize({ width: 100, height: 80, fit: 'inside' })
+          .toBuffer()
+
         composites.push({
-          input: logoBuffer,
+          input: resizedLogo,
           top: Math.floor(height * 0.25),
           left: Math.floor(width * 0.78),
         })
@@ -304,274 +339,131 @@ export class BannerService {
 
       // Add boss image if available
       if (bossImage) {
+        // Resize boss image
+        const resizedBoss = await Sharp(bossImage)
+          .resize({ width: 80, height: 80, fit: 'inside' })
+          .toBuffer()
+
         composites.push({
-          input: bossImage,
+          input: resizedBoss,
           top: Math.floor(height * 0.6),
           left: Math.floor(width * 0.65) + 20,
         })
       }
 
-      // Create text overlays using Sharp's text feature
-      // For each text element needed in the banner:
-      // 1. Create text as separate SVG
-      // 2. Convert to buffer
-      // 3. Add to composites array
+      // Create a transparent overlay for all text
+      // This approach avoids dimension mismatch issues
+      const textSvg = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <!-- Header content -->
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
+        </text>
 
-      // World name text overlay
-      const worldNameText = `${worldInfo.world.name} (${worldInfo.world.pvp_type})`
-      const worldNameSvg = this.createTextSvg(
-        worldNameText,
-        Math.floor(width * 0.01),
-        Math.floor(height * 0.08),
-        {
-          size: Math.floor(height * 0.05),
-          color: colors.primaryText,
-          bold: true,
-        },
-      )
+        <!-- Guild Name in stat panel -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" fill="${colors.primaryText}">
+          ${this.escapeXml(guildInfo.guild.name)}
+        </text>
+
+        <!-- Main guild info -->
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(t.membersOnline)}:
+        </text>
+
+        <!-- Progress bar text -->
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+          ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
+        </text>
+
+        <!-- Guild foundation date if available -->
+        ${
+          guildInfo.guild.founded
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+          ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
+        </text>
+        `
+            : ''
+        }
+
+        <!-- Guild description if available -->
+        ${
+          guildInfo.guild.description
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+          "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
+        </text>
+        `
+            : ''
+        }
+
+        <!-- World stats section -->
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
+          ${t.playersOnline}: ${worldInfo.world.players_online}
+        </text>
+
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
+          ${t.record}: ${worldInfo.world.record_players}
+        </text>
+
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
+          ${worldInfo.world.location}
+        </text>
+
+        <!-- Footer with firebot branding -->
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+          https://firebot.run
+        </text>
+
+        <!-- Boosted boss info -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(t.boostedBoss)}:
+        </text>
+
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+          ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
+        </text>
+      </svg>`
+
+      // Convert text SVG to PNG with transparency
+      const textOverlay = await Sharp(Buffer.from(textSvg))
+        .resize(width, height) // Ensure exact dimensions
+        .png()
+        .toBuffer()
+
+      // Add text overlay as the final layer
       composites.push({
-        input: Buffer.from(worldNameSvg),
+        input: textOverlay,
         top: 0,
         left: 0,
       })
 
-      // Guild name text overlay
-      const guildNameSvg = this.createTextSvg(
-        guildInfo.guild.name,
-        Math.floor(width * 0.65) + 20,
-        Math.floor(height * 0.08),
-        {
-          size: Math.floor(height * 0.04),
-          color: colors.primaryText,
-        },
-      )
-      composites.push({
-        input: Buffer.from(guildNameSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Members online text
-      const membersOnlineSvg = this.createTextSvg(
-        `${t.membersOnline}:`,
-        Math.floor(width * 0.02),
-        Math.floor(height * 0.23),
-        {
-          size: Math.floor(height * 0.05),
-          color: colors.primaryText,
-          bold: true,
-        },
-      )
-      composites.push({
-        input: Buffer.from(membersOnlineSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Progress bar text
-      const progressText = `${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)`
-      const progressTextSvg = this.createTextSvg(
-        progressText,
-        Math.floor(width * 0.31),
-        Math.floor(height * 0.3),
-        {
-          size: Math.floor(height * 0.04),
-          color: colors.primaryText,
-          bold: true,
-          align: 'center',
-        },
-      )
-      composites.push({
-        input: Buffer.from(progressTextSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Founded date if available
-      if (guildInfo.guild.founded) {
-        const foundedTextSvg = this.createTextSvg(
-          `${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}`,
-          Math.floor(width * 0.02),
-          Math.floor(height * 0.38),
-          {
-            size: Math.floor(height * 0.035),
-            color: colors.secondaryText,
-          },
-        )
-        composites.push({
-          input: Buffer.from(foundedTextSvg),
-          top: 0,
-          left: 0,
-        })
-      }
-
-      // Guild description if available
-      if (guildInfo.guild.description) {
-        const description =
-          guildInfo.guild.description.substring(0, 100) +
-          (guildInfo.guild.description.length > 100 ? '...' : '')
-
-        const descriptionTextSvg = this.createTextSvg(
-          `"${description}"`,
-          Math.floor(width * 0.02),
-          Math.floor(height * 0.46),
-          {
-            size: Math.floor(height * 0.03),
-            color: colors.accentText,
-          },
-        )
-        composites.push({
-          input: Buffer.from(descriptionTextSvg),
-          top: 0,
-          left: 0,
-        })
-      }
-
-      // World stats
-      const playersOnlineTextSvg = this.createTextSvg(
-        `${t.playersOnline}: ${worldInfo.world.players_online}`,
-        Math.floor(width * 0.02),
-        Math.floor(height * 0.56),
-        {
-          size: Math.floor(height * 0.035),
-          color: colors.successText,
-        },
-      )
-      composites.push({
-        input: Buffer.from(playersOnlineTextSvg),
-        top: 0,
-        left: 0,
-      })
-
-      const recordTextSvg = this.createTextSvg(
-        `${t.record}: ${worldInfo.world.record_players}`,
-        Math.floor(width * 0.02),
-        Math.floor(height * 0.64),
-        {
-          size: Math.floor(height * 0.035),
-          color: colors.warningText,
-        },
-      )
-      composites.push({
-        input: Buffer.from(recordTextSvg),
-        top: 0,
-        left: 0,
-      })
-
-      const locationTextSvg = this.createTextSvg(
-        worldInfo.world.location,
-        Math.floor(width * 0.02),
-        Math.floor(height * 0.72),
-        {
-          size: Math.floor(height * 0.035),
-          color: colors.dangerText,
-        },
-      )
-      composites.push({
-        input: Buffer.from(locationTextSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Footer
-      const footerTextSvg = this.createTextSvg(
-        'https://firebot.run',
-        Math.floor(width * 0.31),
-        Math.floor(height * 0.9),
-        {
-          size: Math.floor(height * 0.035),
-          color: colors.accentText,
-          align: 'center',
-        },
-      )
-      composites.push({
-        input: Buffer.from(footerTextSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Boosted boss info
-      const bossLabelSvg = this.createTextSvg(
-        `${t.boostedBoss}:`,
-        Math.floor(width * 0.65) + 20,
-        Math.floor(height * 0.5),
-        {
-          size: Math.floor(height * 0.04),
-          color: colors.primaryText,
-          bold: true,
-        },
-      )
-      composites.push({
-        input: Buffer.from(bossLabelSvg),
-        top: 0,
-        left: 0,
-      })
-
-      const bossNameSvg = this.createTextSvg(
-        boosted?.boostable_bosses?.boosted?.name || 'N/A',
-        Math.floor(width * 0.65) + 20,
-        Math.floor(height * 0.56),
-        {
-          size: Math.floor(height * 0.035),
-          color: colors.accentText,
-        },
-      )
-      composites.push({
-        input: Buffer.from(bossNameSvg),
-        top: 0,
-        left: 0,
-      })
-
-      // Apply all composites to the base image
-      baseImage = baseImage.composite(composites)
-
-      // Output as PNG
-      return await baseImage.png().toBuffer()
+      // Apply all composites and return the final image
+      return await image.composite(composites).png().toBuffer()
     } catch (error) {
-      console.error('Direct image creation failed:', error)
-      throw new Error(`Direct image creation failed: ${error.message}`)
+      console.error('Final image creation error:', error)
+      throw new Error(`Final image creation failed: ${error.message}`)
     }
   }
 
   /**
-   * Helper method to create SVG with text
-   * This avoids the font rendering issues by creating text as separate SVG elements
+   * Convert text to base64 to handle encoding issues
    */
-  private createTextSvg(
-    text: string,
-    x: number,
-    y: number,
-    options: {
-      size: number
-      color: string
-      bold?: boolean
-      align?: 'left' | 'center' | 'right'
-    },
-  ): string {
-    const { size, color, bold = false, align = 'left' } = options
+  private encodeText(text: string): string {
+    if (!text) return ''
+    return Buffer.from(text).toString('base64')
+  }
 
-    // Clean text to avoid XML issues
-    const cleanText = this.escapeXml(text || '')
-
-    // Set text-anchor based on alignment
-    let textAnchor = 'start'
-    if (align === 'center') textAnchor = 'middle'
-    if (align === 'right') textAnchor = 'end'
-
-    // Create SVG with just the text
-    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-    <svg xmlns="http://www.w3.org/2000/svg" width="3000" height="3000">
-      <text
-        x="${x}"
-        y="${y}"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="${size}"
-        ${bold ? 'font-weight="bold"' : ''}
-        fill="${color}"
-        text-anchor="${textAnchor}">
-        ${cleanText}
-      </text>
-    </svg>`
+  /**
+   * Decode base64 text
+   */
+  private decodeText(base64: string): string {
+    if (!base64) return ''
+    try {
+      return Buffer.from(base64, 'base64').toString('utf8')
+    } catch (e) {
+      throw e
+    }
   }
 
   /**
