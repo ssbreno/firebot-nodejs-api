@@ -36,7 +36,7 @@ export class BannerController {
     try {
       const { world, guild, ...options } = query
 
-      const banner = await this.bannerService.generateBanner(world, guild, options.lang)
+      const banner = await this.bannerService.generateBanner(world, guild, options)
 
       res.headers({
         'Content-Type': 'image/png',
