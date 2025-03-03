@@ -27,7 +27,6 @@ export class BannerService {
         lang = 'pt',
         theme = 'firebot',
         showBoss = true,
-        showLogo = true,
         width = 1200,
         height = 300,
       } = options
@@ -39,202 +38,32 @@ export class BannerService {
       // Only fetch boss image if enabled in options
       const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
 
-      // Calculate online percentage
-      const onlinePercentage = Math.round(
-        (data.guildInfo.guild.players_online / data.guildInfo.guild.members_total) * 100,
+      // Decode any base64 encoded text in translations
+      const decodedTranslations = {
+        ...t,
+        avgLevel: this.decodeText(t.avgLevel),
+        topVocation: this.decodeText(t.topVocation),
+        guildStats: this.decodeText(t.guildStats),
+      }
+
+      // Use the traditional SVG approach but without text elements
+      const rawSvg = this.generateBaseStructureSVG(data, {
+        width,
+        height,
+        theme,
+        showBoss,
+        lang: options.lang,
+      })
+
+      // Create the final image with text overlays
+      return await this.createFinalImageWithText(
+        rawSvg,
+        assets,
+        data,
+        decodedTranslations,
+        bossImage,
+        options,
       )
-
-      // MÉTODO 1: Criar uma imagem única com todos os elementos, incluindo texto
-      // Esta abordagem desenha texto diretamente na imagem usando composites
-      const fullSVG = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-        <defs>
-          <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#3c0000;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
-          </linearGradient>
-
-          <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#240000;stop-opacity:1" />
-            <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
-          </linearGradient>
-
-          <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
-            <feOffset dx="1" dy="1" result="offsetblur" />
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="0.5" />
-            </feComponentTransfer>
-            <feMerge>
-              <feMergeNode />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          <clipPath id="roundedCorners">
-            <rect width="${width}" height="${height}" rx="5" ry="5" />
-          </clipPath>
-        </defs>
-
-        <!-- Background with black and red gradient -->
-        <g clip-path="url(#roundedCorners)">
-          <rect width="100%" height="100%" fill="url(#bgGradient)"/>
-
-          <!-- Header bar -->
-          <rect width="100%" height="${height * 0.12}" fill="url(#headerGradient)"/>
-
-          <!-- Main content area -->
-          <rect x="10" y="${height * 0.14}" width="${width * 0.62}" height="${height * 0.82}"
-                rx="4" ry="4" fill="rgba(10, 10, 10, 0.9)" filter="url(#dropShadow)"/>
-
-          <!-- Stats panel area -->
-          <rect x="${width * 0.64 + 10}" y="${height * 0.14}" width="${width * 0.35 - 20}" height="${height * 0.82}"
-                rx="4" ry="4" fill="rgba(10, 10, 10, 0.9)" filter="url(#dropShadow)"/>
-
-          <!-- Progress bar for online members with firebot colors -->
-          <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="#222222" />
-          <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="#750000" />
-        </g>
-      </svg>`
-
-      // Converter o SVG base em uma imagem
-      const baseImage = await Sharp(Buffer.from(fullSVG)).png().toBuffer()
-
-      // Preparar composições para adicionar à imagem base
-      const composites = []
-
-      // MÉTODO 2: Usar TextOnImage para adicionar texto básico diretamente
-      // Vamos desenhar textos diretamente usando Sharp com texto sobreposto
-      // Criar uma imagem com os textos
-
-      // Textos importantes no banner - apenas ASCII básico para testes
-      const texts = [
-        {
-          text: `${data.worldInfo.world.name} (${data.worldInfo.world.pvp_type})`,
-          fontSize: 24,
-          x: 20,
-          y: 30,
-          color: 'white',
-        },
-        {
-          text: `Guild: ${data.guildInfo.guild.name}`,
-          fontSize: 20,
-          x: Math.round(width * 0.65) + 20,
-          y: 30,
-          color: 'white',
-        },
-        {
-          text: `${t.membersOnline}: ${data.guildInfo.guild.players_online}/${data.guildInfo.guild.members_total} (${onlinePercentage}%)`,
-          fontSize: 18,
-          x: 20,
-          y: Math.round(height * 0.3),
-          color: 'white',
-        },
-        {
-          text: `${t.playersOnline}: ${data.worldInfo.world.players_online}`,
-          fontSize: 16,
-          x: 20,
-          y: Math.round(height * 0.5),
-          color: '#00cc44',
-        },
-        {
-          text: `${t.record}: ${data.worldInfo.world.record_players}`,
-          fontSize: 16,
-          x: 20,
-          y: Math.round(height * 0.6),
-          color: '#ffaa00',
-        },
-        {
-          text: data.worldInfo.world.location,
-          fontSize: 16,
-          x: 20,
-          y: Math.round(height * 0.7),
-          color: '#ff3333',
-        },
-        {
-          text: 'https://firebot.run',
-          fontSize: 16,
-          x: Math.round(width * 0.31),
-          y: Math.round(height * 0.9),
-          color: '#ff3333',
-        },
-        {
-          text: `${t.boostedBoss}:`,
-          fontSize: 18,
-          x: Math.round(width * 0.65) + 20,
-          y: Math.round(height * 0.5),
-          color: 'white',
-        },
-        {
-          text: data.boosted?.boostable_bosses?.boosted?.name || 'N/A',
-          fontSize: 16,
-          x: Math.round(width * 0.65) + 20,
-          y: Math.round(height * 0.56),
-          color: '#ff3333',
-        },
-        {
-          text: 'TESTE DIRETO DE TEXTO',
-          fontSize: 28,
-          x: Math.round(width * 0.3),
-          y: Math.round(height * 0.8),
-          color: 'yellow',
-        },
-      ]
-
-      // Para cada texto, criar uma imagem de texto simples
-      for (const textItem of texts) {
-        const textSvg = `
-        <svg width="${width}" height="${Math.round(textItem.fontSize * 2)}">
-          <text
-            x="${Math.round(textItem.x)}"
-            y="${Math.round(textItem.fontSize * 1.2)}"
-            font-family="Arial, sans-serif"
-            font-size="${textItem.fontSize}px"
-            fill="${textItem.color}"
-          >${this.escapeXml(textItem.text)}</text>
-        </svg>`
-
-        const textBuffer = await Sharp(Buffer.from(textSvg)).png().toBuffer()
-
-        composites.push({
-          input: textBuffer,
-          top: Math.round(textItem.y - textItem.fontSize),
-          left: 0,
-        })
-      }
-
-      // Add logo if needed
-      if (showLogo && assets.fbotImageBase64) {
-        const logoBuffer = Buffer.from(assets.fbotImageBase64, 'base64')
-
-        // Resize the logo to appropriate dimensions
-        const resizedLogo = await Sharp(logoBuffer)
-          .resize({ width: 100, height: 80, fit: 'inside' })
-          .toBuffer()
-
-        composites.push({
-          input: resizedLogo,
-          top: Math.round(height * 0.25),
-          left: Math.round(width * 0.78),
-        })
-      }
-
-      // Add boss image if available
-      if (bossImage) {
-        // Resize boss image
-        const resizedBoss = await Sharp(bossImage)
-          .resize({ width: 80, height: 80, fit: 'inside' })
-          .toBuffer()
-
-        composites.push({
-          input: resizedBoss,
-          top: Math.round(height * 0.6),
-          left: Math.round(width * 0.65) + 20,
-        })
-      }
-
-      // Combine all layers
-      return await Sharp(baseImage).composite(composites).png().toBuffer()
     } catch (error) {
       console.error('Banner generation error:', error)
       throw new Error(`Banner generation failed: ${error.message}`)
@@ -337,6 +166,288 @@ export class BannerService {
     } catch (error) {
       console.warn('Boss image processing failed:', error)
       return null
+    }
+  }
+
+  /**
+   * Generate the base SVG structure WITHOUT any text elements
+   */
+  private generateBaseStructureSVG(
+    data: BannerData,
+    options: {
+      width?: number
+      height?: number
+      theme?: string
+      showBoss?: boolean
+      lang?: string
+    },
+  ): string {
+    try {
+      const { worldInfo, guildInfo } = data
+      const { width = 1200, height = 300 } = options
+
+      if (!worldInfo || !guildInfo) {
+        throw new Error('Missing required data for SVG generation')
+      }
+
+      // Firebot theme-specific colors
+      const colors = {
+        gradientStart: '#3c0000',
+        gradientEnd: '#000000',
+        headerBg: '#1a0000',
+        mainBg: 'rgba(0, 0, 0, 0.9)',
+        contentBg: 'rgba(10, 10, 10, 0.9)',
+        primaryText: '#ffffff',
+        secondaryText: '#bbbbbb',
+        accentText: '#ff3333',
+        successText: '#00cc44',
+        warningText: '#ffaa00',
+        dangerText: '#ff3333',
+        progressBarBg: '#222222',
+        progressBarFill: '#750000',
+      }
+
+      // Calculate online percentage
+      const onlinePercentage = Math.round(
+        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+      )
+
+      // Build the SVG with black and red theme, WITHOUT ANY TEXT
+      return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <defs>
+          <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:${colors.gradientStart};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${colors.gradientEnd};stop-opacity:1" />
+          </linearGradient>
+
+          <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#240000;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+          </linearGradient>
+
+          <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+            <feOffset dx="1" dy="1" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.5" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <clipPath id="roundedCorners">
+            <rect width="${width}" height="${height}" rx="5" ry="5" />
+          </clipPath>
+        </defs>
+
+        <!-- Background with black and red gradient -->
+        <g clip-path="url(#roundedCorners)">
+          <rect width="100%" height="100%" fill="url(#bgGradient)"/>
+
+          <!-- Header bar -->
+          <rect width="100%" height="${height * 0.12}" fill="url(#headerGradient)"/>
+
+          <!-- Main content area - now just using colors instead of image -->
+          <rect x="10" y="${height * 0.14}" width="${width * 0.62}" height="${height * 0.82}"
+                rx="4" ry="4" fill="${colors.contentBg}" filter="url(#dropShadow)"/>
+
+          <!-- Stats panel area -->
+          <rect x="${width * 0.64 + 10}" y="${height * 0.14}" width="${width * 0.35 - 20}" height="${height * 0.82}"
+                rx="4" ry="4" fill="${colors.contentBg}" filter="url(#dropShadow)"/>
+        </g>
+
+        <!-- Progress bar for online members with firebot colors -->
+        <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarBg}" />
+        <rect x="${width * 0.02}" y="${height * 0.26}" width="${width * 0.58 * (onlinePercentage / 100)}" height="${height * 0.06}" rx="3" ry="3" fill="${colors.progressBarFill}" />
+      </svg>`
+    } catch (error) {
+      throw new Error(`SVG generation failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Create final image with text overlays
+   */
+  private async createFinalImageWithText(
+    svg: string,
+    assets: BannerAssets,
+    data: BannerData,
+    t: Translations[string],
+    bossImage: Buffer | null,
+    options: {
+      width?: number
+      height?: number
+      theme?: string
+      showLogo?: boolean
+      showBoss?: boolean
+      lang?: string
+    },
+  ): Promise<Buffer> {
+    try {
+      const { width = 1200, height = 300, showLogo = true } = options
+
+      const { fbotImageBase64 } = assets
+      const { worldInfo, guildInfo, boosted } = data
+
+      // Calculate online percentage
+      const onlinePercentage = Math.round(
+        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+      )
+
+      // Convert base SVG to image
+      const svgBuffer = Buffer.from(svg)
+      const image = Sharp(svgBuffer)
+
+      // Firebot theme-specific colors
+      const colors = {
+        primaryText: '#ffffff',
+        secondaryText: '#bbbbbb',
+        accentText: '#ff3333',
+        successText: '#00cc44',
+        warningText: '#ffaa00',
+        dangerText: '#ff3333',
+      }
+
+      // Create all the text images
+      const composites = []
+
+      // Add logo if needed
+      if (showLogo && fbotImageBase64) {
+        const logoBuffer = Buffer.from(fbotImageBase64, 'base64')
+
+        // Resize the logo to appropriate dimensions
+        const resizedLogo = await Sharp(logoBuffer)
+          .resize({ width: 100, height: 80, fit: 'inside' })
+          .toBuffer()
+
+        composites.push({
+          input: resizedLogo,
+          top: Math.floor(height * 0.25),
+          left: Math.floor(width * 0.78),
+        })
+      }
+
+      // Add boss image if available
+      if (bossImage) {
+        // Resize boss image
+        const resizedBoss = await Sharp(bossImage)
+          .resize({ width: 80, height: 80, fit: 'inside' })
+          .toBuffer()
+
+        composites.push({
+          input: resizedBoss,
+          top: Math.floor(height * 0.6),
+          left: Math.floor(width * 0.65) + 20,
+        })
+      }
+
+      // Create a transparent overlay for all text
+      // This approach avoids dimension mismatch issues
+      const textSvg = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <!-- Header content -->
+        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
+        </text>
+
+        <!-- Guild Name in stat panel -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" fill="${colors.primaryText}">
+          ${this.escapeXml(guildInfo.guild.name)}
+        </text>
+
+        <!-- Main guild info -->
+        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(t.membersOnline)}:
+        </text>
+
+        <!-- Progress bar text -->
+        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
+          ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
+        </text>
+
+        <!-- Guild foundation date if available -->
+        ${
+          guildInfo.guild.founded
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
+          ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
+        </text>
+        `
+            : ''
+        }
+
+        <!-- Guild description if available -->
+        ${
+          guildInfo.guild.description
+            ? `
+        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
+          "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
+        </text>
+        `
+            : ''
+        }
+
+        <!-- World stats section -->
+        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
+          ${t.playersOnline}: ${worldInfo.world.players_online}
+        </text>
+
+        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
+          ${t.record}: ${worldInfo.world.record_players}
+        </text>
+
+        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
+          ${worldInfo.world.location}
+        </text>
+
+        <!-- Footer with firebot branding -->
+        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
+          https://firebot.run
+        </text>
+
+        <!-- Boosted boss info -->
+        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
+          ${this.escapeXml(t.boostedBoss)}:
+        </text>
+
+        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
+          ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
+        </text>
+      </svg>`
+
+      // Convert text SVG to PNG with transparency
+      const textOverlay = await Sharp(Buffer.from(textSvg))
+        .resize(width, height) // Ensure exact dimensions
+        .png()
+        .toBuffer()
+
+      // Add text overlay as the final layer
+      composites.push({
+        input: textOverlay,
+        top: 0,
+        left: 0,
+      })
+
+      // Apply all composites and return the final image
+      return await image.composite(composites).png().toBuffer()
+    } catch (error) {
+      console.error('Final image creation error:', error)
+      throw new Error(`Final image creation failed: ${error.message}`)
+    }
+  }
+
+  /**
+   * Decode base64 text
+   */
+  private decodeText(base64: string): string {
+    if (!base64) return ''
+    try {
+      return Buffer.from(base64, 'base64').toString('utf8')
+    } catch (e) {
+      throw e
     }
   }
 

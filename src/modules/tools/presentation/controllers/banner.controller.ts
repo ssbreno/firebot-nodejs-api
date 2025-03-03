@@ -36,7 +36,7 @@ export class BannerController {
       const { world, guild, ...options } = query
       const pngBuffer = await this.bannerService.generateBanner(world, guild, options)
 
-      response.type('image/png') // Use type() instead of setHeader
+      response.type('image/svg+xml')
       response.send(pngBuffer)
     } catch (error) {
       throw error
