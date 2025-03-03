@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Query, Res, ValidationPipe } from '@nestjs/common'
+import { Controller, Get, HttpStatus, Query, Res } from '@nestjs/common'
 import { BannerService } from '../../domain/services/banner.service'
 import { ApiTags, ApiResponse } from '@nestjs/swagger'
 import { GenerateBannerDto } from '../../dto/banner.dto'
@@ -30,7 +30,7 @@ export class BannerController {
       const { world, guild, ...options } = query
       const pngBuffer = await this.bannerService.generateBanner(world, guild, options)
 
-      response.type('image/svg+xml')
+      response.type('image/png')
       response.send(pngBuffer)
     } catch (error) {
       throw error
