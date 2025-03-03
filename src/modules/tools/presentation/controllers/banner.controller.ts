@@ -2,6 +2,7 @@ import { Controller, Get, HttpStatus, Query, Res, ValidationPipe } from '@nestjs
 import { BannerService } from '../../domain/services/banner.service'
 import { ApiTags, ApiResponse } from '@nestjs/swagger'
 import { GenerateBannerDto } from '../../dto/banner.dto'
+import { Response } from 'express'
 
 @ApiTags('Tools')
 @Controller('tools')
@@ -30,10 +31,14 @@ export class BannerController {
       }),
     )
     query: GenerateBannerDto,
+    @Res() res: Response,
   ) {
     try {
       const { world, guild, ...options } = query
-      return await this.bannerService.generateBanner(world, guild, options)
+      const pngBuffer = await this.bannerService.generateBanner(world, guild, options)
+
+      res.setHeader('Content-Type', 'image/png')
+      return res.send(pngBuffer)
     } catch (error) {
       throw error
     }
