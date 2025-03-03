@@ -20,7 +20,6 @@ import { WinstonLogger } from './common/logging'
 const DEFAULT_API_PREFIX = '/api'
 const DEFAULT_API_VERSION = '1'
 const DEFAULT_SWAGGER_PREFIX = '/docs'
-const DEFAULT_HOST = '0.0.0.0'
 const DEFAULT_LOG_LEVEL = 'debug'
 /**
  * Setup the Swagger (UI).

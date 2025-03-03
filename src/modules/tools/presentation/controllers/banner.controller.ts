@@ -36,23 +36,31 @@ export class BannerController {
     try {
       const { world, guild, ...options } = query
 
+      // Generate the banner
       const banner = await this.bannerService.generateBanner(world, guild, options)
 
-      res.raw.setHeader('Content-Type', 'image/png')
-      res.raw.setHeader(
-        'Content-Disposition',
-        `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"; charset=utf-8`,
-      )
-      res.raw.setHeader('Content-Language', options.lang || 'pt')
-      res.raw.setHeader('Content-Transfer-Encoding', 'binary')
-      res.raw.setHeader('Cache-Control', 'public, max-age=300')
+      // Ensure correct content type and headers
+      res.headers({
+        'Content-Type': 'image/png',
+        'Content-Disposition': `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"`,
+        'Content-Length': banner.length.toString(),
+        'Cache-Control': 'public, max-age=300',
+      })
 
+      // Set status code explicitly
+      res.status(HttpStatus.OK)
+
+      // Send the buffer directly
       return res.send(banner)
     } catch (error) {
+      console.error('Banner generation error:', error)
+
+      // Return a proper error response
       res.status(HttpStatus.INTERNAL_SERVER_ERROR)
       return res.send({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: error.message || 'Failed to generate banner',
+        timestamp: new Date().toISOString(),
       })
     }
   }
