@@ -11,7 +11,7 @@ COPY . .
 
 RUN npm run build
 
-RUN apt-get update && apt-get install -y fonts-liberation fonts-dejavu
+RUN apk add --no-cache fontconfig ttf-dejavu
 
 FROM node:20-alpine AS production
 
