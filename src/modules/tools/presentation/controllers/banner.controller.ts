@@ -3,7 +3,6 @@ import { BannerService } from '../../domain/services/banner.service'
 import { ApiTags, ApiResponse } from '@nestjs/swagger'
 import { GenerateBannerDto } from '../../dto/banner.dto'
 import { Response } from 'express'
-
 @ApiTags('Tools')
 @Controller('tools')
 export class BannerController {
@@ -31,14 +30,14 @@ export class BannerController {
       }),
     )
     query: GenerateBannerDto,
-    @Res() res: Response,
+    @Res() response: Response, // Fixed parameter name and ensure proper typing
   ) {
     try {
       const { world, guild, ...options } = query
       const pngBuffer = await this.bannerService.generateBanner(world, guild, options)
 
-      res.setHeader('Content-Type', 'image/png')
-      return res.send(pngBuffer)
+      response.type('image/png') // Use type() instead of setHeader
+      response.send(pngBuffer)
     } catch (error) {
       throw error
     }
