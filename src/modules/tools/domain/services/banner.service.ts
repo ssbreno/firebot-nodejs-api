@@ -3,7 +3,12 @@ import { join } from 'path'
 import * as Sharp from 'sharp'
 import { ApiService } from '../../infrastructure/services/api.service'
 import { translations } from '../../config/constants'
-import { BannerAssets, BannerData, BannerOptions } from '../interfaces/banner.interface'
+import {
+  BannerAssets,
+  BannerData,
+  BannerOptions,
+  Translations,
+} from '../interfaces/banner.interface'
 
 @Injectable()
 export class BannerService {
@@ -114,7 +119,7 @@ export class BannerService {
         {
           text: `Guild: ${data.guildInfo.guild.name}`,
           fontSize: 20,
-          x: width * 0.65 + 20,
+          x: Math.round(width * 0.65) + 20,
           y: 30,
           color: 'white',
         },
@@ -122,56 +127,56 @@ export class BannerService {
           text: `${t.membersOnline}: ${data.guildInfo.guild.players_online}/${data.guildInfo.guild.members_total} (${onlinePercentage}%)`,
           fontSize: 18,
           x: 20,
-          y: height * 0.3,
+          y: Math.round(height * 0.3),
           color: 'white',
         },
         {
           text: `${t.playersOnline}: ${data.worldInfo.world.players_online}`,
           fontSize: 16,
           x: 20,
-          y: height * 0.5,
+          y: Math.round(height * 0.5),
           color: '#00cc44',
         },
         {
           text: `${t.record}: ${data.worldInfo.world.record_players}`,
           fontSize: 16,
           x: 20,
-          y: height * 0.6,
+          y: Math.round(height * 0.6),
           color: '#ffaa00',
         },
         {
           text: data.worldInfo.world.location,
           fontSize: 16,
           x: 20,
-          y: height * 0.7,
+          y: Math.round(height * 0.7),
           color: '#ff3333',
         },
         {
           text: 'https://firebot.run',
           fontSize: 16,
-          x: width * 0.31,
-          y: height * 0.9,
+          x: Math.round(width * 0.31),
+          y: Math.round(height * 0.9),
           color: '#ff3333',
         },
         {
           text: `${t.boostedBoss}:`,
           fontSize: 18,
-          x: width * 0.65 + 20,
-          y: height * 0.5,
+          x: Math.round(width * 0.65) + 20,
+          y: Math.round(height * 0.5),
           color: 'white',
         },
         {
           text: data.boosted?.boostable_bosses?.boosted?.name || 'N/A',
           fontSize: 16,
-          x: width * 0.65 + 20,
-          y: height * 0.56,
+          x: Math.round(width * 0.65) + 20,
+          y: Math.round(height * 0.56),
           color: '#ff3333',
         },
         {
           text: 'TESTE DIRETO DE TEXTO',
           fontSize: 28,
-          x: width * 0.3,
-          y: height * 0.8,
+          x: Math.round(width * 0.3),
+          y: Math.round(height * 0.8),
           color: 'yellow',
         },
       ]
@@ -179,10 +184,10 @@ export class BannerService {
       // Para cada texto, criar uma imagem de texto simples
       for (const textItem of texts) {
         const textSvg = `
-        <svg width="${width}" height="${textItem.fontSize * 2}">
+        <svg width="${width}" height="${Math.round(textItem.fontSize * 2)}">
           <text
-            x="${textItem.x}"
-            y="${textItem.fontSize * 1.2}"
+            x="${Math.round(textItem.x)}"
+            y="${Math.round(textItem.fontSize * 1.2)}"
             font-family="Arial, sans-serif"
             font-size="${textItem.fontSize}px"
             fill="${textItem.color}"
@@ -193,7 +198,7 @@ export class BannerService {
 
         composites.push({
           input: textBuffer,
-          top: textItem.y - textItem.fontSize,
+          top: Math.round(textItem.y - textItem.fontSize),
           left: 0,
         })
       }
@@ -209,8 +214,8 @@ export class BannerService {
 
         composites.push({
           input: resizedLogo,
-          top: Math.floor(height * 0.25),
-          left: Math.floor(width * 0.78),
+          top: Math.round(height * 0.25),
+          left: Math.round(width * 0.78),
         })
       }
 
@@ -223,8 +228,8 @@ export class BannerService {
 
         composites.push({
           input: resizedBoss,
-          top: Math.floor(height * 0.6),
-          left: Math.floor(width * 0.65) + 20,
+          top: Math.round(height * 0.6),
+          left: Math.round(width * 0.65) + 20,
         })
       }
 
