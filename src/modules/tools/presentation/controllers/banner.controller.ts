@@ -36,10 +36,8 @@ export class BannerController {
     try {
       const { world, guild, ...options } = query
 
-      // Generate the banner
-      const banner = await this.bannerService.generateBanner(world, guild, options)
+      const banner = await this.bannerService.generateBanner(world, guild, options.lang)
 
-      // Ensure correct content type and headers
       res.headers({
         'Content-Type': 'image/png',
         'Content-Disposition': `inline; filename="firebot-guild-${guild.toLowerCase().replace(/\s+/g, '-')}.png"`,
@@ -47,15 +45,12 @@ export class BannerController {
         'Cache-Control': 'public, max-age=300',
       })
 
-      // Set status code explicitly
       res.status(HttpStatus.OK)
 
-      // Send the buffer directly
       return res.send(banner)
     } catch (error) {
       console.error('Banner generation error:', error)
 
-      // Return a proper error response
       res.status(HttpStatus.INTERNAL_SERVER_ERROR)
       return res.send({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

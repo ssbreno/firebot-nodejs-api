@@ -73,7 +73,6 @@ export class ApiService {
   }
 
   private transformRespawns(data: any): any {
-    // Implement your respawn transformation logic here
     return data
   }
 }
