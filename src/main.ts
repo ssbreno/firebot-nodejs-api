@@ -67,22 +67,6 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix)
 
   setupSwagger(app)
-
-  await app.register(compress as any, {
-    encodings: ['gzip', 'deflate'],
-  })
-
-  await app.register(helmet as any, {
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: [`'self'`],
-        styleSrc: [`'self'`, `'unsafe-inline'`],
-        imgSrc: [`'self'`, 'data:', 'validator.swagger.io'],
-        scriptSrc: [`'self'`, `https: 'unsafe-inline'`],
-      },
-    },
-  })
-
   useContainer(app.select(AppModule), { fallbackOnErrors: true })
 
   app.useGlobalPipes(

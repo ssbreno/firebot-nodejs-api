@@ -22,13 +22,7 @@ export class BannerController {
     description: 'Failed to generate banner',
   })
   async getGuildBanner(
-    @Query(
-      new ValidationPipe({
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-        whitelist: true,
-      }),
-    )
+    @Query()
     query: GenerateBannerDto,
     @Res() response: Response, // Fixed parameter name and ensure proper typing
   ) {
