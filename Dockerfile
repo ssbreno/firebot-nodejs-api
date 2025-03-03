@@ -11,6 +11,8 @@ COPY . .
 
 RUN npm run build
 
+RUN apt-get update && apt-get install -y fonts-liberation fonts-dejavu
+
 FROM node:20-alpine AS production
 
 ARG NODE_ENV=production
