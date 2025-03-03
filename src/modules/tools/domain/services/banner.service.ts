@@ -39,16 +39,8 @@ export class BannerService {
       // Only fetch boss image if enabled in options
       const bossImage = showBoss ? await this.getBossImage(data.boosted) : null
 
-      // Decode any base64 encoded text in translations
-      const decodedTranslations = {
-        ...t,
-        avgLevel: this.decodeText(t.avgLevel),
-        topVocation: this.decodeText(t.topVocation),
-        guildStats: this.decodeText(t.guildStats),
-      }
-
-      // Use the traditional SVG approach but without text elements
-      const rawSvg = this.generateBaseStructureSVG(data, {
+      // Create base image with SVG structure
+      const baseSvg = this.generateBaseStructureSVG(data, {
         width,
         height,
         theme,
@@ -56,22 +48,63 @@ export class BannerService {
         lang: options.lang,
       })
 
-      // Create the final image with text overlays
-      return await this.createFinalImageWithText(
-        rawSvg,
-        assets,
-        data,
-        decodedTranslations,
-        bossImage,
+      // Generate text overlays as separate SVGs
+      const texts = this.generateTextOverlaySVG(data, t, {
+        width,
+        height,
+        theme,
+      })
+
+      // Convert SVG to buffer
+      const baseImageBuffer = await Sharp(Buffer.from(baseSvg)).png().toBuffer()
+
+      const textImageBuffer = await Sharp(Buffer.from(texts)).png().toBuffer()
+
+      // Composite layers
+      let imageComposite = Sharp(baseImageBuffer).composite([
         {
-          width,
-          height,
-          theme,
-          showBoss,
-          showLogo,
-          lang: options.lang,
+          input: textImageBuffer,
+          top: 0,
+          left: 0,
         },
-      )
+      ])
+
+      // Add logo if needed
+      if (showLogo && assets.fbotImageBase64) {
+        const logoBuffer = Buffer.from(assets.fbotImageBase64, 'base64')
+
+        // Resize the logo to appropriate dimensions
+        const resizedLogo = await Sharp(logoBuffer)
+          .resize({ width: 100, height: 80, fit: 'inside' })
+          .toBuffer()
+
+        imageComposite = imageComposite.composite([
+          {
+            input: resizedLogo,
+            top: Math.floor(height * 0.25),
+            left: Math.floor(width * 0.78),
+          },
+        ])
+      }
+
+      // Add boss image if available
+      if (bossImage) {
+        // Resize boss image
+        const resizedBoss = await Sharp(bossImage)
+          .resize({ width: 80, height: 80, fit: 'inside' })
+          .toBuffer()
+
+        imageComposite = imageComposite.composite([
+          {
+            input: resizedBoss,
+            top: Math.floor(height * 0.6),
+            left: Math.floor(width * 0.65) + 20,
+          },
+        ])
+      }
+
+      // Output final image
+      return await imageComposite.png().toBuffer()
     } catch (error) {
       console.error('Banner generation error:', error)
       throw new Error(`Banner generation failed: ${error.message}`)
@@ -277,193 +310,107 @@ export class BannerService {
   }
 
   /**
-   * Create final image with text overlays
+   * Generate text overlay as a separate SVG
    */
-  private async createFinalImageWithText(
-    svg: string,
-    assets: BannerAssets,
+  private generateTextOverlaySVG(
     data: BannerData,
     t: Translations[string],
-    bossImage: Buffer | null,
     options: {
       width: number
       height: number
       theme: string
-      showBoss: boolean
-      showLogo: boolean
-      lang?: string
     },
-  ): Promise<Buffer> {
-    try {
-      const { width, height, showLogo } = options
-      const { fbotImageBase64 } = assets
-      const { worldInfo, guildInfo, boosted } = data
+  ): string {
+    const { width, height } = options
+    const { worldInfo, guildInfo, boosted } = data
 
-      // Calculate online percentage
-      const onlinePercentage = Math.round(
-        (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
-      )
+    // Calculate online percentage
+    const onlinePercentage = Math.round(
+      (guildInfo.guild.players_online / guildInfo.guild.members_total) * 100,
+    )
 
-      // Convert base SVG to image
-      const svgBuffer = Buffer.from(svg)
-      const image = Sharp(svgBuffer)
-
-      // Firebot theme-specific colors
-      const colors = {
-        primaryText: '#ffffff',
-        secondaryText: '#bbbbbb',
-        accentText: '#ff3333',
-        successText: '#00cc44',
-        warningText: '#ffaa00',
-        dangerText: '#ff3333',
-      }
-
-      // Create all the text images
-      const composites = []
-
-      // Add logo if needed
-      if (showLogo && fbotImageBase64) {
-        const logoBuffer = Buffer.from(fbotImageBase64, 'base64')
-
-        // Resize the logo to appropriate dimensions
-        const resizedLogo = await Sharp(logoBuffer)
-          .resize({ width: 100, height: 80, fit: 'inside' })
-          .toBuffer()
-
-        composites.push({
-          input: resizedLogo,
-          top: Math.floor(height * 0.25),
-          left: Math.floor(width * 0.78),
-        })
-      }
-
-      // Add boss image if available
-      if (bossImage) {
-        // Resize boss image
-        const resizedBoss = await Sharp(bossImage)
-          .resize({ width: 80, height: 80, fit: 'inside' })
-          .toBuffer()
-
-        composites.push({
-          input: resizedBoss,
-          top: Math.floor(height * 0.6),
-          left: Math.floor(width * 0.65) + 20,
-        })
-      }
-
-      // Create a transparent overlay for all text
-      // This approach avoids dimension mismatch issues
-      const textSvg = `
-      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-        <!-- Header content -->
-        <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
-          ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
-        </text>
-
-        <!-- Guild Name in stat panel -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, sans-serif" font-size="${height * 0.04}" fill="${colors.primaryText}">
-          ${this.escapeXml(guildInfo.guild.name)}
-        </text>
-
-        <!-- Main guild info -->
-        <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}">
-          ${this.escapeXml(t.membersOnline)}:
-        </text>
-
-        <!-- Progress bar text -->
-        <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold">
-          ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
-        </text>
-
-        <!-- Guild foundation date if available -->
-        ${
-          guildInfo.guild.founded
-            ? `
-        <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}">
-          ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
-        </text>
-        `
-            : ''
-        }
-
-        <!-- Guild description if available -->
-        ${
-          guildInfo.guild.description
-            ? `
-        <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}">
-          "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
-        </text>
-        `
-            : ''
-        }
-
-        <!-- World stats section -->
-        <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}">
-          ${t.playersOnline}: ${worldInfo.world.players_online}
-        </text>
-
-        <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}">
-          ${t.record}: ${worldInfo.world.record_players}
-        </text>
-
-        <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}">
-          ${worldInfo.world.location}
-        </text>
-
-        <!-- Footer with firebot branding -->
-        <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}">
-          https://firebot.run
-        </text>
-
-        <!-- Boosted boss info -->
-        <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}">
-          ${this.escapeXml(t.boostedBoss)}:
-        </text>
-
-        <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}">
-          ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
-        </text>
-      </svg>`
-
-      // Convert text SVG to PNG with transparency
-      const textOverlay = await Sharp(Buffer.from(textSvg))
-        .resize(width, height) // Ensure exact dimensions
-        .png()
-        .toBuffer()
-
-      // Add text overlay as the final layer
-      composites.push({
-        input: textOverlay,
-        top: 0,
-        left: 0,
-      })
-
-      // Apply all composites and return the final image
-      return await image.composite(composites).png().toBuffer()
-    } catch (error) {
-      console.error('Final image creation error:', error)
-      throw new Error(`Final image creation failed: ${error.message}`)
+    // Firebot theme-specific colors
+    const colors = {
+      primaryText: '#ffffff',
+      secondaryText: '#bbbbbb',
+      accentText: '#ff3333',
+      successText: '#00cc44',
+      warningText: '#ffaa00',
+      dangerText: '#ff3333',
     }
-  }
 
-  /**
-   * Convert text to base64 to handle encoding issues
-   */
-  private encodeText(text: string): string {
-    if (!text) return ''
-    return Buffer.from(text).toString('base64')
-  }
+    // Generate text overlay SVG with ONLY text content and transparent background
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      <!-- Header content -->
+      <text x="${width * 0.01}" y="${height * 0.08}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}" style="paint-order: stroke; stroke: #000000; stroke-width: 2px; stroke-linejoin: round;">
+        ${this.escapeXml(worldInfo.world.name)} (${this.escapeXml(worldInfo.world.pvp_type)})
+      </text>
 
-  /**
-   * Decode base64 text
-   */
-  private decodeText(base64: string): string {
-    if (!base64) return ''
-    try {
-      return Buffer.from(base64, 'base64').toString('utf8')
-    } catch (e) {
-      throw e
-    }
+      <!-- Guild Name in stat panel -->
+      <text x="${width * 0.65 + 20}" y="${height * 0.08}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.04}" fill="${colors.primaryText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${this.escapeXml(guildInfo.guild.name)}
+      </text>
+
+      <!-- Main guild info -->
+      <text x="${width * 0.02}" y="${height * 0.23}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.05}" font-weight="bold" fill="${colors.primaryText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${this.escapeXml(t.membersOnline)}:
+      </text>
+
+      <!-- Progress bar text -->
+      <text x="${width * 0.31}" y="${height * 0.3}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.04}" text-anchor="middle" fill="${colors.primaryText}" font-weight="bold" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${guildInfo.guild.players_online}/${guildInfo.guild.members_total} (${onlinePercentage}%)
+      </text>
+
+      <!-- Guild foundation date if available -->
+      ${
+        guildInfo.guild.founded
+          ? `
+      <text x="${width * 0.02}" y="${height * 0.38}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" fill="${colors.secondaryText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${t.founded || 'Fundado em'}: ${guildInfo.guild.founded}
+      </text>
+      `
+          : ''
+      }
+
+      <!-- Guild description if available -->
+      ${
+        guildInfo.guild.description
+          ? `
+      <text x="${width * 0.02}" y="${height * 0.46}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.03}" fill="${colors.accentText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        "${guildInfo.guild.description.substring(0, 100)}${guildInfo.guild.description.length > 100 ? '...' : ''}"
+      </text>
+      `
+          : ''
+      }
+
+      <!-- World stats section -->
+      <text x="${width * 0.02}" y="${height * 0.56}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" fill="${colors.successText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${t.playersOnline}: ${worldInfo.world.players_online}
+      </text>
+
+      <text x="${width * 0.02}" y="${height * 0.64}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" fill="${colors.warningText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${t.record}: ${worldInfo.world.record_players}
+      </text>
+
+      <text x="${width * 0.02}" y="${height * 0.72}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" fill="${colors.dangerText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${worldInfo.world.location}
+      </text>
+
+      <!-- Footer with firebot branding -->
+      <text x="${width * 0.31}" y="${height * 0.9}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" text-anchor="middle" fill="${colors.accentText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        https://firebot.run
+      </text>
+
+      <!-- Boosted boss info -->
+      <text x="${width * 0.65 + 20}" y="${height * 0.5}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.04}" font-weight="bold" fill="${colors.primaryText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${this.escapeXml(t.boostedBoss)}:
+      </text>
+
+      <text x="${width * 0.65 + 20}" y="${height * 0.56}" font-family="Arial, Helvetica, sans-serif" font-size="${height * 0.035}" fill="${colors.accentText}" style="paint-order: stroke; stroke: #000000; stroke-width: 1px; stroke-linejoin: round;">
+        ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
+      </text>
+    </svg>`
   }
 
   /**
