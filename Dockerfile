@@ -11,8 +11,6 @@ COPY . .
 
 RUN npm run build
 
-RUN apk add --no-cache fontconfig ttf-dejavu
-
 FROM node:20-alpine AS production
 
 ARG NODE_ENV=production
