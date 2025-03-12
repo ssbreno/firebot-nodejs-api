@@ -1,67 +1,27 @@
 import { Injectable } from '@nestjs/common'
-import * as puppeteer from 'puppeteer'
+import * as sharp from 'sharp'
 
 @Injectable()
 export class BannerService {
   async generateBanner(text: string): Promise<Buffer> {
-    // Launch browser with proper configuration for Docker
-    const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-      headless: true,
-    })
+    // Create SVG template with the text
+    const svgBuffer = Buffer.from(`
+      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="630" fill="white"/>
+        <text
+          x="600"
+          y="315"
+          font-family="Arial, sans-serif"
+          font-size="48"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          fill="black">
+            ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}
+        </text>
+      </svg>
+    `)
 
-    try {
-      const page = await browser.newPage()
-      await page.setViewport({ width: 1200, height: 630 })
-
-      // Set content with proper HTML escaping for security
-      const safeText = text.replace(/[&<>"']/g, match => {
-        return (
-          {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;',
-          }[match] || match
-        )
-      })
-
-      await page.setContent(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body {
-              margin: 0;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
-              background-color: white;
-              font-family: Arial, sans-serif;
-              font-size: 48px;
-              text-align: center;
-            }
-          </style>
-        </head>
-        <body>
-          <div>${safeText}</div>
-        </body>
-        </html>
-      `)
-
-      // Take screenshot and return as buffer
-      return Buffer.from(
-        await page.screenshot({
-          type: 'png',
-          fullPage: false,
-          omitBackground: false,
-        }),
-      )
-    } finally {
-      await browser.close()
-    }
+    // Convert SVG to PNG
+    return await sharp(svgBuffer).png().toBuffer()
   }
 }
