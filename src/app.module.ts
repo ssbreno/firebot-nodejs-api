@@ -12,7 +12,6 @@ import { PrismaModule } from './infraestructure/prisma/prisma.module'
 import { QueueModule } from './modules/queue/queue.module'
 import { ToolsModule } from './modules/tools/tools.module'
 import { BlogModule } from './modules/blog/blog.module'
-import { BannerModule } from './modules/banner/banner.module'
 import { redisConfig } from './config/redis.config'
 
 @Module({
@@ -42,7 +41,6 @@ import { redisConfig } from './config/redis.config'
     QueueModule,
     ToolsModule,
     BlogModule,
-    BannerModule,
   ],
   providers: [
     {
