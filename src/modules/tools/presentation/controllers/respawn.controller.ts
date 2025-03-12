@@ -33,30 +33,4 @@ export class RespawnController {
       })
     }
   }
-
-  @Get('rashid/image')
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: "Returns a PNG image showing Rashid's location",
-  })
-  @ApiResponse({
-    status: HttpStatus.INTERNAL_SERVER_ERROR,
-    description: 'Failed to generate Rashid location image',
-  })
-  async getRashidImage(@Res() response: Response) {
-    try {
-      const pngBuffer = await this.respawnService.generateRashidImage()
-
-      response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-      response.setHeader('Pragma', 'no-cache')
-      response.setHeader('Expires', '0')
-      response.type('image/png')
-      response.send(pngBuffer)
-    } catch (error) {
-      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        message: 'Failed to generate Rashid location image',
-        error: error.message,
-      })
-    }
-  }
 }

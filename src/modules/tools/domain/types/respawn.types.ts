@@ -15,8 +15,3 @@ export interface RespawnItem {
 export interface RespawnResponse {
   respawns: RespawnItem[]
 }
-
-export interface RashidLocation {
-  city: string
-  date: string
-}

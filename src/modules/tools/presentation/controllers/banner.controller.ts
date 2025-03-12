@@ -1,8 +1,7 @@
-import { Controller, Get, HttpStatus, Query, Res, Header } from '@nestjs/common'
+import { Controller, Get, HttpStatus, Query, Header } from '@nestjs/common'
 import { BannerService } from '../../domain/services/banner.service'
 import { ApiTags, ApiResponse } from '@nestjs/swagger'
 import { GenerateBannerDto } from '../../dto/banner.dto'
-import { Response } from 'express'
 
 @ApiTags('Tools')
 @Controller('tools')
@@ -26,10 +25,7 @@ export class BannerController {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     description: 'Failed to generate banner',
   })
-  async getGuildBanner(
-    @Query() query: GenerateBannerDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async getGuildBanner(@Query() query: GenerateBannerDto) {
     try {
       const { world, guild, ...options } = query
       const pngBuffer = await this.bannerService.generateBanner(world, guild, options)

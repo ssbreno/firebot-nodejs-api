@@ -27,32 +27,53 @@ export interface BoostedBoss {
   }
 }
 
-export interface BannerAssets {
-  fbotImageBase64: string
-  backgroundImageBase64: string
-}
-
-export interface BannerData {
-  worldInfo: WorldInfo
-  guildInfo: GuildInfo
-  boosted: BoostedBoss
-}
-
 export interface BannerOptions {
   lang?: string
-  theme?: 'dark' | 'light' | 'firebot'
+  theme?: string
   showBoss?: boolean
   showLogo?: boolean
   width?: number
   height?: number
 }
 
+export interface BannerAssets {
+  fbotImageBase64: string
+  backgroundImageBase64: string
+}
+
+export interface RashidLocation {
+  city: string
+  day?: string
+  place?: string
+  updated_at?: string
+}
+
+export interface WorldChanges {
+  changes: Array<{
+    id: string
+    type: string
+    description: string
+    created_at: string
+    updated_at: string
+  }>
+}
+
+export interface BannerData {
+  worldInfo: any
+  guildInfo: any
+  boosted: any
+  rashidLocation: RashidLocation
+  worldChanges: WorldChanges
+  yasirIsActive: boolean
+  updateDate: string
+}
+
 export interface Translations {
-  [language: string]: {
+  [lang: string]: {
     membersOnline: string
-    boostedBoss: string
     playersOnline: string
     record: string
+    boostedBoss: string
     founded: string
     avgLevel: string
     topVocation: string

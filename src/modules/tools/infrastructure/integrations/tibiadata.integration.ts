@@ -66,13 +66,4 @@ export class ApiService {
       throw new Error(`Upload failed: ${error.message}`)
     }
   }
-
-  async fetchRespawns(): Promise<any> {
-    const response = await axios.get('https://api.firebot.run/api/respawns/list-all')
-    return this.transformRespawns(response.data)
-  }
-
-  private transformRespawns(data: any): any {
-    return data
-  }
 }
