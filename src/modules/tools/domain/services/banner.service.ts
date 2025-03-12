@@ -738,20 +738,9 @@ export class BannerService {
         ${this.escapeXml(boosted?.boostable_bosses?.boosted?.name || 'N/A')}
       </text>
 
-      <!-- Rashid label, style as in your screenshot -->
-      <text x="${width * 0.7}" y="${height * 0.6}" font-family="Arial, sans-serif" font-size="${height * 0.042}"
-            fill="${colors.primaryText}" font-weight="bold" filter="url(#textShadow)">
-        Rashid:
-      </text>
-
-      <!-- Stylized "Rashid" text as shown in screenshot -->
-      <text x="${width * 0.7}" y="${height * 0.7}" font-family="Arial, sans-serif" font-size="${height * 0.045}"
-            fill="${colors.rashidGreen}" filter="url(#rashidGlow)" text-anchor="middle" font-weight="bold">
-        Rashid
-      </text>
 
       <!-- Rashid location city in green -->
-      <text x="${width * 0.7}" y="${height * 0.76}" font-family="Arial, sans-serif" font-size="${height * 0.04}"
+      <text x="${width * 0.7}" y="${height * 0.56}" font-family="Arial, sans-serif" font-size="${height * 0.04}"
             fill="${colors.rashidGreen}" filter="url(#rashidGlow)" text-anchor="middle">
         ${this.escapeXml(rashidLocation?.city || '')}
       </text>
