@@ -37,9 +37,8 @@ export class FirebotIntegration {
         return this.token
       }
 
-      const email = this.configService.get<string>('FIREBOT_API_EMAIL') || 'admin@firebot.run'
-      const password = this.configService.get<string>('FIREBOT_API_PASSWORD') || 'firebot123'
-
+      const email = this.configService.get<string>('FIREBOT_API_EMAIL')
+      const password = this.configService.get<string>('FIREBOT_API_PASSWORD')
       if (!email || !password) {
         throw new Error('Firebot API credentials not configured')
       }

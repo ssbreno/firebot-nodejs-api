@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import * as sharp from 'sharp'
-import { FirebotIntegration } from '../infrastructure/integrations/firebot.integration'
+import { FirebotIntegration } from '../../infrastructure/integrations/firebot.integration'
 
 @Injectable()
 export class RespawnService {

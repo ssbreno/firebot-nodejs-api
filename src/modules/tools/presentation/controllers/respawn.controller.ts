@@ -1,7 +1,7 @@
 import { Controller, Get, Res, HttpStatus } from '@nestjs/common'
 import { ApiTags, ApiResponse } from '@nestjs/swagger'
 import { Response } from 'express'
-import { RespawnService } from '../../services/respawn.service'
+import { RespawnService } from '../../domain/services/respawn.service'
 
 @ApiTags('Tools')
 @Controller('tools')
