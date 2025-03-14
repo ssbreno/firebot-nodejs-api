@@ -1,141 +1,116 @@
 import { LoggerService } from '@nestjs/common'
-import { createLogger, Logger, LoggerOptions } from 'winston'
+import * as winston from 'winston'
+
+import { nestConsoleFormat, severity } from './winston.formats'
+
+export interface LoggerOptions {
+  level?: string
+  silent?: boolean
+  format?: winston.Logform.Format
+  transports?: winston.transport[]
+}
 
 export class WinstonLogger implements LoggerService {
-  private readonly logger: Logger
+  private readonly logger: winston.Logger
   private context?: string
 
-  /**
-   *
-   * @param options
-   */
-  constructor(options?: LoggerOptions) {
-    this.logger = createLogger(options)
+  constructor(context?: string, options?: LoggerOptions) {
+    this.context = context
+
+    this.logger = winston.createLogger({
+      level: options?.level || 'info',
+      silent: options?.silent || false,
+      format:
+        options?.format ||
+        winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.ms(),
+          severity({ upperCase: true }),
+          nestConsoleFormat(),
+        ),
+      transports: options?.transports || [new winston.transports.Console()],
+    })
   }
 
   /**
-   *
-   * @param context
+   * Set the context for the logger
    */
-  public setContext(context: string) {
+  public setContext(context: string): void {
     this.context = context
   }
 
   /**
-   *
-   * @param message
-   * @param context
+   * Log an info message
    */
-  public log(message: any, context?: string): any {
-    context = context || this.context
-    if ('object' === typeof message) {
-      const { message: msg, ...meta } = message
-
-      return this.logger.info(msg as string, {
-        context,
-        ...meta,
-      })
-    }
-
-    return this.logger.info(message, {
-      context,
-    })
+  public log(message: any, context?: string): void {
+    this.callLoggerMethod('info', message, context)
   }
 
   /**
-   *
-   * @param message
-   * @param trace
-   * @param context
+   * Log an error message
    */
-  public error(message: any, trace?: string, context?: string): any {
-    context = context || this.context
+  public error(message: any, trace?: string, context?: string): void {
+    const meta: Record<string, any> = {}
+    let actualMessage: string
+
     if (message instanceof Error) {
-      const { message: msg, stack } = message
-
-      return this.logger.error(msg, {
-        context,
-        stack: [trace || stack],
-      })
+      actualMessage = message.message
+      meta.stack = trace || message.stack
+    } else if (typeof message === 'object' && message !== null) {
+      const { message: msg, ...rest } = message
+      actualMessage = (msg as string) || 'Error'
+      Object.assign(meta, rest)
+      if (trace) meta.stack = trace
+    } else {
+      actualMessage = message
+      if (trace) meta.stack = trace
     }
 
-    if ('object' === typeof message) {
-      const { message: msg, ...meta } = message
-
-      return this.logger.error(msg as string, {
-        context,
-        stack: [trace],
-        ...meta,
-      })
-    }
-
-    return this.logger.error(message, {
-      context,
-      stack: [trace],
+    this.logger.error(actualMessage, {
+      context: context || this.context,
+      ...meta,
     })
   }
 
   /**
-   *
-   * @param message
-   * @param context
+   * Log a warning message
    */
-  public warn(message: any, context?: string): any {
-    context = context || this.context
-    if ('object' === typeof message) {
-      const { message: msg, ...meta } = message
-
-      return this.logger.warn(msg as string, {
-        context,
-        ...meta,
-      })
-    }
-
-    return this.logger.warn(message, {
-      context,
-    })
+  public warn(message: any, context?: string): void {
+    this.callLoggerMethod('warn', message, context)
   }
 
   /**
-   *
-   * @param message
-   * @param context
+   * Log a debug message
    */
-  public debug?(message: any, context?: string): any {
-    context = context || this.context
-    if ('object' === typeof message) {
-      const { message: msg, ...meta } = message
-
-      return this.logger.debug(msg as string, {
-        context,
-        ...meta,
-      })
-    }
-
-    return this.logger.debug(message, {
-      context,
-    })
+  public debug(message: any, context?: string): void {
+    this.callLoggerMethod('debug', message, context)
   }
 
   /**
-   *
-   * @param message
-   * @param context
+   * Log a verbose message
    */
-  public verbose?(message: any, context?: string): any {
-    context = context || this.context
+  public verbose(message: any, context?: string): void {
+    this.callLoggerMethod('verbose', message, context)
+  }
 
-    if ('object' === typeof message) {
+  /**
+   * Call the appropriate logger method with type safety
+   */
+  private callLoggerMethod(
+    methodName: 'info' | 'warn' | 'debug' | 'verbose',
+    message: any,
+    context?: string,
+  ): void {
+    if (typeof message === 'object' && message !== null && 'message' in message) {
       const { message: msg, ...meta } = message
-
-      return this.logger.verbose(msg as string, {
-        context,
+      this.logger[methodName]((msg as string) || methodName, {
+        context: context || this.context,
         ...meta,
       })
+    } else {
+      this.logger[methodName](message, {
+        context: context || this.context,
+      })
     }
-
-    return this.logger.verbose(message, {
-      context,
-    })
   }
 }

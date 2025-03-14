@@ -23,7 +23,7 @@
       "@common/*": ["src/common/*"],
       "@domain/*": ["src/domain/*"],
       "@infrastructure/*": ["src/infraestructure/*"],
-      "@test/*": ["test/*"]
+      "@test/*": ["__tests__/e2e/*"]
     }
   },
   "exclude": ["node_modules", "dist"]

@@ -752,7 +752,7 @@ export class BannerService {
       </text>
 
       <!-- Yasir status with enhanced visibility -->
-      <text x="${width * 0.07}" y="${height * 0.83}" font-family="Arial, sans-serif" font-size="${height * 0.045}"
+      <text x="${width * 0.05}" y="${height * 0.83}" font-family="Arial, sans-serif" font-size="${height * 0.045}"
             font-weight="bold" fill="${yasirIsActive ? colors.successText : colors.dangerText}" filter="url(#textShadow)">
         ${yasirIsActive ? 'ON' : 'OFF'}
       </text>

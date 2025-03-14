@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { HttpService } from '@nestjs/axios'
 import { ConfigService } from '@nestjs/config'
 import { firstValueFrom } from 'rxjs'
-import { RespawnResponse } from '../../domain/types/respawn.types'
+import { RespawnItem, RespawnResponse } from '../../domain/types/respawn.types'
 
 interface AuthToken {
   access_token: string
@@ -28,9 +28,6 @@ export class FirebotIntegration {
     this.apiUrl = apiUrl
   }
 
-  /**
-   * Authenticate with the Firebot API
-   */
   private async authenticate(): Promise<string> {
     try {
       if (this.token && this.tokenExpiry && this.tokenExpiry > new Date()) {
@@ -67,9 +64,6 @@ export class FirebotIntegration {
     }
   }
 
-  /**
-   * Make an authenticated request to the Firebot API
-   */
   private async authenticatedRequest<T>(url: string): Promise<T> {
     try {
       const token = await this.authenticate()
@@ -108,13 +102,16 @@ export class FirebotIntegration {
 
   async fetchRespawns(): Promise<RespawnResponse> {
     try {
-      const { data } = await firstValueFrom(
-        this.httpService.get<RespawnResponse>(`${this.apiUrl}/api/respawns/list-all`),
+      const response = await this.authenticatedRequest<RespawnItem[]>(
+        `${this.apiUrl}/api/respawns/list-all`,
       )
-      return data
+      const respawnResponse: RespawnResponse = {
+        respawns: Array.isArray(response) ? response : [],
+      }
+      return respawnResponse
     } catch (error) {
       this.logger.error(`Error fetching respawns: ${error.message}`)
-      throw error
+      return { respawns: [] }
     }
   }
 
